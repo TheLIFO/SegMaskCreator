@@ -3,6 +3,9 @@ import random
 
 from PyQt5 import QtWidgets
 from PyQt5 import QtCore
+from PyQt5 import uic
+from PyQt5.QtCore import Qt
+from PyQt5.QtWidgets import QWidget
 import pyvista as pv
 from pyvistaqt import QtInteractor
 
@@ -12,7 +15,9 @@ from views.ortho_view import OrthoView
 
 from model.model import Model
 from controllers.main_controller import MainController
+from views.ui_view_control import Ui_ViewControl
 
+          
 # this class contains the mainFrame of the segmentcreator
 # functions for 
 #   - load data (CT image files ".nrrd")
@@ -20,27 +25,22 @@ from controllers.main_controller import MainController
 #   - export/save data (segmentation mask) 
 
 class MainView(QtWidgets.QMainWindow):
-    def __init__(self, model, main_controller, title, is_visible = True):
-        super().__init__()
+    def __init__(self, model, main_controller, title):
+        super(MainView, self).__init__()
         
-        self.show()
-        self.central_widget = QtWidgets.QWidget(self)
+        
+        self.central_widget = QtWidgets.QWidget()
         self.setCentralWidget(self.central_widget)
         
         self.setWindowTitle(title)
-        self.resize(1000, 600)
+        self.resize(1400, 1000)
         self._model = model
         self._main_controller = main_controller
         
         # self.frame = QtWidgets.QFrame(self)
         # self.frame.setStyleSheet('background-color: rgba(0,0,0,1);')
-        self.layout = QtWidgets.QGridLayout()
-        self.central_widget.setLayout(self.layout)
-            
-        
-        self.is_visible = is_visible          
-        
-
+        layout = QtWidgets.QGridLayout()
+        self.central_widget.setLayout(layout)
         # create widgets and connect them to controller
      
         # menu  bar
@@ -75,17 +75,33 @@ class MainView(QtWidgets.QMainWindow):
        
         # add additional frames such as buttons and the 3D view
                
+        # add orthoview control
+        
+        self.show()
+        self.view_control = Ui_ViewControl()
+        self.view_control.setupUi(self)
+        
+        
+        layout.addWidget(self.view_control.layoutWidget, 0, 2, 1, 1)
+        
         # add and show view Frame
-        self.view3D = View3D(self.central_widget, model, main_controller, True)
-        self.layout.addWidget(self.view3D, 0, 0, 1, 1)
-        
-        # self.view3D.setVisible(True)
-        # self.view3D.update()
-        
-        
+        self.view3D = View3D(model, main_controller)        
+        layout.addWidget(self.view3D, 0, 0, 1, 1)
+                       
+        self.ortho_view = OrthoView(model, main_controller)        
+        layout.addWidget(self.ortho_view, 0, 1, 1, 1)
+                      
         # add table including knotdata
-        self.knot_table_view = KnotTableView(self.central_widget, True)
-        self.layout.addWidget(self.knot_table_view, 1, 0, 1, 1)        
-        
+        self.knot_table_view = KnotTableView(True)        
+        layout.addWidget(self.knot_table_view, 2, 0, 1, 3)        
+ 
 
-           
+    
+    def closeEvent(self, QCloseEvent):
+        super().closeEvent(QCloseEvent)
+        self.view3D.close()
+        self.ortho_view.close()
+        
+   
+        
+        

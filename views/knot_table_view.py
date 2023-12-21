@@ -4,9 +4,9 @@ from model.knot_data import KnotData
 
 class KnotTableView(QtWidgets.QTableWidget):
     def __init__(self, parent, is_visible = False ):
-        super().__init__(parent)        
+        super(KnotTableView, self).__init__()        
         
-        self.frame = QtWidgets.QFrame(parent)
+        self.frame = QtWidgets.QFrame(self)
         self._is_visible = is_visible
         
         self.setRowCount(10)
