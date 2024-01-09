@@ -19,6 +19,7 @@ class View3D(QtWidgets.QWidget):
     def __init__(self, model, main_controller):
         super(View3D, self).__init__()
         
+        self._model = model
         
         self._container = QtWidgets.QGroupBox(self)
         self._container.setSizePolicy(QtWidgets.QSizePolicy(QtWidgets.QSizePolicy.Expanding, QtWidgets.QSizePolicy.Expanding))
@@ -26,19 +27,20 @@ class View3D(QtWidgets.QWidget):
         layout = QtWidgets.QGridLayout()    
         self._container.setLayout(layout)    
         
-        self.plotter3d =  QtInteractor(self)        
+        self.plotter3d =  QtInteractor(self)    
+        # self.plotter3d.enable_stereo_render()    
 
         # threshold          
         self.bt_threshold = QtWidgets.QPushButton("Threshold")
         layout.addWidget(self.plotter3d, 0, 0)
         layout.addWidget(self.bt_threshold, 1, 0)
-        self.bt_threshold.clicked.connect(main_controller.set_threshold_clicked)
+        self.bt_threshold.clicked.connect(main_controller.on_threshold_clicked)
                
         
         layout = QtWidgets.QVBoxLayout(self)
         layout.addWidget(self._container)
         # listen to model event signals 
-        model.mesh_changed.connect(self.on_mesh_changed)
+        self._model.mesh_changed.connect(self.on_mesh_changed)
 
     def closeEvent(self, QCloseEvent):
         super().closeEvent(QCloseEvent)
@@ -46,16 +48,10 @@ class View3D(QtWidgets.QWidget):
         
         
     @pyqtSlot(pv.DataSet)
-    def on_mesh_changed(self, mesh):
-        self.plot_mesh(mesh)
+    def on_mesh_changed(self):
+        self.plot_mesh()
     
-    def plot_model(self, model):
-        try:
-            mesh = model.getMesh()
-            self.plot_mesh(mesh)                
-        except Exception:
-            pass
-    
-    def plot_mesh(self, mesh):        
-        self.plotter3d.add_mesh(mesh, name = 'view3D')
+ 
+    def plot_mesh(self):        
+        self.plotter3d.add_mesh(self._model.mesh, name = 'view3D')
         self.update()

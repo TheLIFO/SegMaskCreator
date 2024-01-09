@@ -4,7 +4,7 @@ import random
 from PyQt5 import QtWidgets
 from PyQt5 import QtCore
 from PyQt5 import uic
-from PyQt5.QtCore import Qt
+from PyQt5.QtCore import Qt, pyqtSlot
 from PyQt5.QtWidgets import QWidget
 import pyvista as pv
 from pyvistaqt import QtInteractor
@@ -15,7 +15,7 @@ from views.ortho_view import OrthoView
 
 from model.model import Model
 from controllers.main_controller import MainController
-from views.ui_view_control import Ui_ViewControl
+
 
           
 # this class contains the mainFrame of the segmentcreator
@@ -28,26 +28,27 @@ class MainView(QtWidgets.QMainWindow):
     def __init__(self, model, main_controller, title):
         super(MainView, self).__init__()
         
-        
-        self.central_widget = QtWidgets.QWidget()
-        self.setCentralWidget(self.central_widget)
-        
-        self.setWindowTitle(title)
-        self.resize(1400, 1000)
         self._model = model
         self._main_controller = main_controller
         
-        # self.frame = QtWidgets.QFrame(self)
-        # self.frame.setStyleSheet('background-color: rgba(0,0,0,1);')
-        layout = QtWidgets.QGridLayout()
-        self.central_widget.setLayout(layout)
-        # create widgets and connect them to controller
-     
-        # menu  bar
+        self.setWindowTitle(title)
+        self.resize(1400, 1000)
+        self.central_widget = QtWidgets.QWidget()
+        self.setCentralWidget(self.central_widget)
+        self.create_menus()
+        self.create_views()
+        self.show()
         
-        # file menu        
+        #listen if slice_pos changed
+        self._model.slice_pos_changed.connect(self.on_slice_pos_changed)
+        
+    
+    def create_menus(self):   
+        # create menu and connect trigger to actions   
+        # menu  bar
         main_menu = self.menuBar()
         
+        # file menu        
         file_menu = main_menu.addMenu('&File')
         
         bt_open_file = QtWidgets.QAction('&Load...', self)
@@ -66,42 +67,82 @@ class MainView(QtWidgets.QMainWindow):
         bt_exit.triggered.connect(self.close)
         file_menu.addAction(bt_exit)
         
+        # view menu            
         view_menu = main_menu.addMenu('&View')
         
         bt_view_image = QtWidgets.QAction('&View 3D Image', self)        
         bt_view_image.setCheckable(True)
-        # btViewModel.triggered.connect()
+        # bt_view_image.triggered.connect()
         view_menu.addAction(bt_view_image)
        
+      
+    
+    def create_views(self):
+        layout = QtWidgets.QGridLayout()
+        self.central_widget.setLayout(layout)
+        # create widgets and connect them to controller
         # add additional frames such as buttons and the 3D view
-               
-        # add orthoview control
         
-        self.show()
-        self.view_control = Ui_ViewControl()
-        self.view_control.setupUi(self)
+        self.ui_view = uic.loadUi("views/ui_view.ui")        
+        layout.addWidget(self.ui_view.layoutWidget, 0, 2, 1, 1)
+
+        # connect changing slider to slice_pos change
+        self.ui_view.horizontal_slider_x.valueChanged.connect(self.slice_pos_changed)
+        self.ui_view.horizontal_slider_y.valueChanged.connect(self.slice_pos_changed)
+        self.ui_view.horizontal_slider_z.valueChanged.connect(self.slice_pos_changed)
         
+        # connect changing models slice position to slice_pos
+        # self._model.slice_pos_changed.connect(self.on_slice_pos_slider_changed)
         
-        layout.addWidget(self.view_control.layoutWidget, 0, 2, 1, 1)
+        # listen to changing mesh to change bounds of slider 
+        self._model.mesh_changed.connect(self.on_slice_bounds_changed)
+
         
         # add and show view Frame
-        self.view3D = View3D(model, main_controller)        
+        self.view3D = View3D(self._model, self._main_controller)        
         layout.addWidget(self.view3D, 0, 0, 1, 1)
                        
-        self.ortho_view = OrthoView(model, main_controller)        
+        # add orthoview control
+        self.ortho_view = OrthoView(self._model, self._main_controller)        
         layout.addWidget(self.ortho_view, 0, 1, 1, 1)
                       
         # add table including knotdata
         self.knot_table_view = KnotTableView(True)        
-        layout.addWidget(self.knot_table_view, 2, 0, 1, 3)        
- 
-
+        layout.addWidget(self.knot_table_view, 2, 0, 1, 3)
     
+        
+    def slice_pos_changed(self):
+        self._model.slice_pos = {   "x": self.ui_view.horizontal_slider_x.value(),
+                                    "y": self.ui_view.horizontal_slider_y.value(),
+                                    "z": self.ui_view.horizontal_slider_z.value() }
+    
+    def on_slice_pos_changed(self):
+        self.ui_view.horizontal_slider_x.setValue(self._model.slice_pos["x"])
+        self.ui_view.horizontal_slider_y.setValue(self._model.slice_pos["y"])
+        self.ui_view.horizontal_slider_z.setValue(self._model.slice_pos["z"])
+        
+    def on_slice_bounds_changed(self):
+        self.ui_view.horizontal_slider_x.setMinimum(self._model.slice_bounds["x"]["min"])
+        self.ui_view.horizontal_slider_x.setMaximum(self._model.slice_bounds["x"]["max"])
+        self.ui_view.horizontal_slider_y.setMinimum(self._model.slice_bounds["y"]["min"])
+        self.ui_view.horizontal_slider_y.setMaximum(self._model.slice_bounds["y"]["max"])
+        self.ui_view.horizontal_slider_z.setMinimum(self._model.slice_bounds["z"]["min"])
+        self.ui_view.horizontal_slider_z.setMaximum(self._model.slice_bounds["z"]["max"])
+        
+        self.ui_view.spinBox_x.setMinimum(self._model.slice_bounds["x"]["min"])
+        self.ui_view.spinBox_x.setMaximum(self._model.slice_bounds["x"]["max"])
+        self.ui_view.spinBox_y.setMinimum(self._model.slice_bounds["y"]["min"])
+        self.ui_view.spinBox_y.setMaximum(self._model.slice_bounds["y"]["max"])
+        self.ui_view.spinBox_z.setMinimum(self._model.slice_bounds["z"]["min"])
+        self.ui_view.spinBox_z.setMaximum(self._model.slice_bounds["z"]["max"])
+
     def closeEvent(self, QCloseEvent):
-        super().closeEvent(QCloseEvent)
+        # it is necessary to finalize the vtk elements when window gets closed
         self.view3D.close()
         self.ortho_view.close()
-        
+        super().closeEvent(QCloseEvent)
+    
+      
    
         
         

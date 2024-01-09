@@ -31,7 +31,7 @@
       <x>0</x>
       <y>20</y>
       <width>441</width>
-      <height>281</height>
+      <height>317</height>
      </rect>
     </property>
     <layout class="QVBoxLayout" name="verticalLayout">
@@ -50,7 +50,7 @@
       </widget>
      </item>
      <item>
-      <widget class="QSpinBox" name="spinBox"/>
+      <widget class="QSpinBox" name="spinBox_x"/>
      </item>
      <item>
       <widget class="QSlider" name="horizontal_slider_x">
@@ -74,7 +74,7 @@
       </widget>
      </item>
      <item>
-      <widget class="QSpinBox" name="spinBox_2"/>
+      <widget class="QSpinBox" name="spinBox_y"/>
      </item>
      <item>
       <widget class="QSlider" name="horizontal_slider_y">
@@ -98,7 +98,7 @@
       </widget>
      </item>
      <item>
-      <widget class="QSpinBox" name="spinBox_3"/>
+      <widget class="QSpinBox" name="spinBox_z"/>
      </item>
      <item>
       <widget class="QSlider" name="horizontal_slider_z">
@@ -116,7 +116,7 @@
   <connection>
    <sender>horizontal_slider_z</sender>
    <signal>valueChanged(int)</signal>
-   <receiver>spinBox_3</receiver>
+   <receiver>spinBox_z</receiver>
    <slot>setValue(int)</slot>
    <hints>
     <hint type="sourcelabel">
@@ -132,7 +132,7 @@
   <connection>
    <sender>horizontal_slider_y</sender>
    <signal>sliderMoved(int)</signal>
-   <receiver>spinBox_2</receiver>
+   <receiver>spinBox_y</receiver>
    <slot>setValue(int)</slot>
    <hints>
     <hint type="sourcelabel">
@@ -148,7 +148,7 @@
   <connection>
    <sender>horizontal_slider_y</sender>
    <signal>valueChanged(int)</signal>
-   <receiver>spinBox_2</receiver>
+   <receiver>spinBox_y</receiver>
    <slot>setValue(int)</slot>
    <hints>
     <hint type="sourcelabel">
@@ -164,7 +164,7 @@
   <connection>
    <sender>horizontal_slider_x</sender>
    <signal>valueChanged(int)</signal>
-   <receiver>spinBox</receiver>
+   <receiver>spinBox_x</receiver>
    <slot>setValue(int)</slot>
    <hints>
     <hint type="sourcelabel">
@@ -178,7 +178,7 @@
    </hints>
   </connection>
   <connection>
-   <sender>spinBox_3</sender>
+   <sender>spinBox_z</sender>
    <signal>valueChanged(int)</signal>
    <receiver>horizontal_slider_z</receiver>
    <slot>setValue(int)</slot>
@@ -196,7 +196,7 @@
   <connection>
    <sender>horizontal_slider_z</sender>
    <signal>sliderMoved(int)</signal>
-   <receiver>spinBox_3</receiver>
+   <receiver>spinBox_z</receiver>
    <slot>setValue(int)</slot>
    <hints>
     <hint type="sourcelabel">
@@ -212,7 +212,7 @@
   <connection>
    <sender>horizontal_slider_x</sender>
    <signal>sliderMoved(int)</signal>
-   <receiver>spinBox</receiver>
+   <receiver>spinBox_x</receiver>
    <slot>setValue(int)</slot>
    <hints>
     <hint type="sourcelabel">
@@ -226,7 +226,7 @@
    </hints>
   </connection>
   <connection>
-   <sender>spinBox_2</sender>
+   <sender>spinBox_y</sender>
    <signal>valueChanged(int)</signal>
    <receiver>horizontal_slider_y</receiver>
    <slot>setValue(int)</slot>
@@ -242,7 +242,7 @@
    </hints>
   </connection>
   <connection>
-   <sender>spinBox</sender>
+   <sender>spinBox_x</sender>
    <signal>valueChanged(int)</signal>
    <receiver>horizontal_slider_x</receiver>
    <slot>setValue(int)</slot>

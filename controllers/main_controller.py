@@ -25,5 +25,5 @@ class MainController:
         # TODO
         print("TODO implement!!\n")
         
-    def set_threshold_clicked(self):
+    def on_threshold_clicked(self):
         pass # TODO
