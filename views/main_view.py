@@ -107,7 +107,7 @@ class MainView(QtWidgets.QMainWindow):
         layout.addWidget(self.ortho_view, 0, 1, 1, 1)
                       
         # add table including knotdata
-        self.knot_table_view = KnotTableView(True)        
+        self.knot_table_view = KnotTableView(self._model)        
         layout.addWidget(self.knot_table_view, 2, 0, 1, 3)
     
         

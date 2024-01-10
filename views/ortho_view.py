@@ -77,9 +77,6 @@ class OrthoView(QtWidgets.QWidget):
         print("pos: ", self._model.slice_pos, " - old_orig: ", origin, " - new_orig: ", new_origin)
 
         
-    def closeEvent(self, QCloseEvent):
-        super().closeEvent(QCloseEvent)
-        self.plotter3D.Finalize()           
                 
     @pyqtSlot(pv.DataSet)
     def on_mesh_changed(self):
@@ -155,6 +152,9 @@ class OrthoView(QtWidgets.QWidget):
 
         self.update()
         
+    def closeEvent(self, QCloseEvent):
+        super().closeEvent(QCloseEvent)
+        self.plotter3D.Finalize()           
 
         
         

@@ -19,10 +19,10 @@ class Model(QObject):
         self._knotdata = None    
         self._mesh = None
         self._threshold = 0
-        self._slice_bounds = {  "x": {"min": 0, "max": 0},
-                                "y": {"min": 0, "max": 0},
-                                "z": {"min": 0, "max": 0} }
-        self._slice_pos = {"x": 0, "y": 0, "z": 0}
+        self._slice_bounds = { "x": {"min": 0, "max": 0},
+                               "y": {"min": 0, "max": 0},
+                               "z": {"min": 0, "max": 0} }
+        self._slice_pos =    { "x": 0, "y": 0, "z": 0 }
 
         
     
@@ -64,9 +64,9 @@ class Model(QObject):
     def knotdata(self):
         return self._knotdata
     @knotdata.setter
-    def knotdata(self, filename):        
-        self._knotData = KnotData(filename)
-        self.knotdata_changed.emit(self._knotData)       
+    def knotdata(self, value):        
+        self._knotdata = value
+        self.knotdata_changed.emit(value)       
     
     @property
     def threshold(self):
