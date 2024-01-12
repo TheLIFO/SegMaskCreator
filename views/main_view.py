@@ -87,9 +87,9 @@ class MainView(QtWidgets.QMainWindow):
         layout.addWidget(self.ui_view.layoutWidget, 0, 2, 1, 1)
 
         # connect changing slider to slice_pos change
-        self.ui_view.horizontal_slider_x.valueChanged.connect(self.slice_pos_changed)
-        self.ui_view.horizontal_slider_y.valueChanged.connect(self.slice_pos_changed)
-        self.ui_view.horizontal_slider_z.valueChanged.connect(self.slice_pos_changed)
+        self.ui_view.horizontal_slider_x.valueChanged.connect(self.slice_pos_slider_x_changed)
+        self.ui_view.horizontal_slider_y.valueChanged.connect(self.slice_pos_slider_y_changed)
+        self.ui_view.horizontal_slider_z.valueChanged.connect(self.slice_pos_slider_z_changed)
         
         # connect changing models slice position to slice_pos
         # self._model.slice_pos_changed.connect(self.on_slice_pos_slider_changed)
@@ -111,10 +111,21 @@ class MainView(QtWidgets.QMainWindow):
         layout.addWidget(self.knot_table_view, 2, 0, 1, 3)
     
         
-    def slice_pos_changed(self):
+    def slice_pos_slider_x_changed(self):    
         self._model.slice_pos = {   "x": self.ui_view.horizontal_slider_x.value(),
+                                    "y": self._model.slice_pos["y"],
+                                    "z": self._model.slice_pos["z"] }
+    
+    def slice_pos_slider_y_changed(self):        
+        self._model.slice_pos = {   "x": self._model.slice_pos["x"],
                                     "y": self.ui_view.horizontal_slider_y.value(),
+                                    "z": self._model.slice_pos["z"] }
+    
+    def slice_pos_slider_z_changed(self):        
+        self._model.slice_pos = {   "x": self._model.slice_pos["x"],
+                                    "y": self._model.slice_pos["y"],
                                     "z": self.ui_view.horizontal_slider_z.value() }
+    
     
     def on_slice_pos_changed(self):
         self.ui_view.horizontal_slider_x.setValue(self._model.slice_pos["x"])
