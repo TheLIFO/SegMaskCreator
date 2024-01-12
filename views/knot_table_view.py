@@ -14,17 +14,13 @@ class KnotTableView(QtWidgets.QTableWidget):
         self.setColumnCount(len(labels))
         self.setHorizontalHeaderLabels(labels)       
         self.setRowHeight(1,20)  
+        for col in range(self.columnCount()):
+            self.horizontalHeader().setSectionResizeMode(col, QtWidgets.QHeaderView.ResizeToContents)
+        self.setMaximumHeight(300)
         
         self._model.knotdata_changed.connect(self.on_knotdata_changed)       
         
-        """
-        knot_data_map = {
-                        # "name":  ["KNOT NO.", "Knot ID in database", "Knot Diam",      "Azimuth",     "Knot type", "R1",       "L1 a",      "L1 b",      "D1",       "L2",       "L3",       "L4",       "L5",       "Count 1"],
-                        "name": KnotData.data.keys(),
-                        "label": ["KnotNo",   "KnotID",              "Diameter\n[mm]", "Azimuth/[°]", "KnotType",  "R1\n[mm]", "L1a\n[mm]", "L1b\n[mm]", "D1\n[mm]", "L2\n[mm]", "L3\n[mm]", "L4\n[mm]", "L5\n[mm]", "Count 1"],
-                        "col":   [0,           1,                     2,               3,             4,           5,          6,           7,           8,          9,          10,         11,         12,         13]
-                        }
-        """
+     
     #hash table for knotdata
     knot_data_map = {   
                         "KNOT NO.":               { "label": "KnotNo",          "col": 0 },

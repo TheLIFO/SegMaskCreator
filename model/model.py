@@ -4,6 +4,7 @@ from PyQt5.QtCore import Qt, QObject, pyqtSignal
 import pyvista as pv
 from model.knot_data import KnotData 
 
+    
 class Model(QObject):
     # signals when model changes
     knotdata_changed = pyqtSignal(KnotData)
@@ -80,16 +81,23 @@ class Model(QObject):
         return self._slice_pos
     @slice_pos.setter
     def slice_pos(self, pos):
-        self._slice_pos = pos
-        self.slice_pos_changed.emit(self._slice_pos)
+        # only change and emit signal if values have really changed
+        if not (self._slice_pos == pos):
+            self._slice_pos = pos
+            print ("slice_pos changed")
+            self.slice_pos_changed.emit(self._slice_pos)
     
     @property 
     def slice_bounds(self):
         return self._slice_bounds
     @slice_bounds.setter
     def slice_bounds(self, bounds):
-        self._slice_bounds = bounds
-        self.slice_bounds_changed.emit(self._slice_bounds)
+        # only change and emit signal if values have really changed
+        if not (self._slice_bounds == bounds):
+            self._slice_bounds = bounds
+            self.slice_bounds_changed.emit(self._slice_bounds)
+            
+    
         
   
 
