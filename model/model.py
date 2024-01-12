@@ -19,7 +19,7 @@ class Model(QObject):
         
         self._knotdata = None    
         self._mesh = None
-        self._threshold = 0
+        self._threshold = 0        
         self._slice_bounds = { "x": {"min": 0, "max": 0},
                                "y": {"min": 0, "max": 0},
                                "z": {"min": 0, "max": 0} }

@@ -113,9 +113,9 @@ class OrthoView(QtWidgets.QWidget):
         self.cutter_X.Update()
         self.cutter_Y.Update()
         self.cutter_Z.Update()
-        # self.clip_plane_widget_X.SetOrigin([self._model.slice_pos["x"], 0, 0])
-        # self.clip_plane_widget_Y.SetOrigin([0, self._model.slice_pos["y"], 0])
-        # self.clip_plane_widget_Z.SetOrigin([0, 0, self._model.slice_pos["z"]])
+        self.clip_plane_widget_X.SetOrigin([self._model.slice_pos["x"], self._model.mesh.center[1], self._model.mesh.center[2]])
+        self.clip_plane_widget_Y.SetOrigin([self._model.mesh.center[0], self._model.slice_pos["y"], self._model.mesh.center[2]])
+        self.clip_plane_widget_Z.SetOrigin([self._model.mesh.center[0], self._model.mesh.center[2], self._model.slice_pos["z"]])
         
         self.plotter_ortho_views.camera.reset_clipping_range()
         
