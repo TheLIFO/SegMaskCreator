@@ -28,17 +28,17 @@ class OrthoView(QtWidgets.QWidget):
         
         
         # plotter for several cut 2D views
-        self.plotter_ortho_view_x =  QtInteractor(self)   
-        self.plotter_ortho_view_x.enable_image_style()
-        layout.addWidget(self.plotter_ortho_view_x, 0, 1)
+        self.plotter_ortho_view_yz =  QtInteractor(self)   
+        self.plotter_ortho_view_yz.enable_image_style()
+        layout.addWidget(self.plotter_ortho_view_yz, 0, 1)
         
-        self.plotter_ortho_view_y =  QtInteractor(self)
-        self.plotter_ortho_view_y.enable_image_style()
-        layout.addWidget(self.plotter_ortho_view_y, 1, 0)
+        self.plotter_ortho_view_xz =  QtInteractor(self)
+        self.plotter_ortho_view_xz.enable_image_style()
+        layout.addWidget(self.plotter_ortho_view_xz, 1, 0)
         
-        self.plotter_ortho_view_z =  QtInteractor(self)
-        self.plotter_ortho_view_z.enable_image_style()
-        layout.addWidget(self.plotter_ortho_view_z, 1, 1)
+        self.plotter_ortho_view_xy =  QtInteractor(self)
+        self.plotter_ortho_view_xy.enable_image_style()
+        layout.addWidget(self.plotter_ortho_view_xy, 1, 1)
         
         
         # listen to model event signals     
@@ -51,16 +51,16 @@ class OrthoView(QtWidgets.QWidget):
         #                 (0.0, 1.0, 0.0)]
  
         
-        self.cutter_X = vtk.vtkCutter()
-        self.plane_X = vtk.vtkPlane()
+        self.cutter_YZ = vtk.vtkCutter()
+        self.plane_YZ = vtk.vtkPlane()
 
         
-        self.cutter_Y = vtk.vtkCutter()
-        self.plane_Y = vtk.vtkPlane()
+        self.cutter_XZ = vtk.vtkCutter()
+        self.plane_XZ = vtk.vtkPlane()
 
         
-        self.cutter_Z = vtk.vtkCutter()
-        self.plane_Z = vtk.vtkPlane()
+        self.cutter_XY = vtk.vtkCutter()
+        self.plane_XY = vtk.vtkPlane()
 
         # self.plotter_ortho_views.subplot(0, 0)
         self.clip_plane_widget_X = self.plotter3D.add_plane_widget(assign_to_axis = 'x', test_callback = False, callback = self.on_clip_plane_X_changed, interaction_event="always",)
@@ -68,19 +68,19 @@ class OrthoView(QtWidgets.QWidget):
         self.clip_plane_widget_Z = self.plotter3D.add_plane_widget(assign_to_axis = 'z', test_callback = False, callback = self.on_clip_plane_Z_changed, interaction_event="always",)
         
     def on_clip_plane_X_changed(self, normal, origin):
-        new_origin = [round(a) for a in list(origin)]                
+        new_origin = [round(a*2)/2 for a in list(origin)]                
         self._model.slice_pos =  {  "x": new_origin[0],
                                     "y": self._model.slice_pos["y"],
                                     "z": self._model.slice_pos["z"] }
         
     def on_clip_plane_Y_changed(self, normal, origin):
-        new_origin = [round(a) for a in list(origin)]                
+        new_origin = [round(a*2)/2 for a in list(origin)]                
         self._model.slice_pos =  {  "x": self._model.slice_pos["x"],
                                     "y": new_origin[1],
                                     "z": self._model.slice_pos["z"] }          
 
     def on_clip_plane_Z_changed(self, normal, origin):
-        new_origin = [round(a) for a in list(origin)]        
+        new_origin = [round(a*2)/2 for a in list(origin)]        
         self._model.slice_pos = {   "x": self._model.slice_pos["x"],
                                     "y": self._model.slice_pos["y"],
                                     "z": new_origin[2] }
@@ -105,20 +105,25 @@ class OrthoView(QtWidgets.QWidget):
         self.clip_plane_widget_Z.PlaceWidget(bounds["x"]["min"], bounds["x"]["max"], bounds["y"]["min"], bounds["y"]["max"], bounds["z"]["min"], bounds["z"]["max"])
     
     def update_plots(self):
-        self.plane_X.SetOrigin([self._model.slice_pos["x"], 0, 0])
-        self.plane_Y.SetOrigin([0, self._model.slice_pos["y"], 0])
-        self.plane_Z.SetOrigin([0, 0, self._model.slice_pos["z"]])
+        
+        # self.plotter_ortho_view_x.set_scale(self._model.mesh_scale[0], self._model.mesh_scale[1], self._model.mesh_scale[2], True)
+        # self.plotter_ortho_view_y.set_scale(self._model.mesh_scale[0], self._model.mesh_scale[1], self._model.mesh_scale[2], True)
+        # self.plotter_ortho_view_z.set_scale(self._model.mesh_scale[0], self._model.mesh_scale[1], self._model.mesh_scale[2], True)
+        
+        self.plane_YZ.SetOrigin([self._model.slice_pos["x"], 0, 0])
+        self.plane_XZ.SetOrigin([0, self._model.slice_pos["y"], 0])
+        self.plane_XY.SetOrigin([0, 0, self._model.slice_pos["z"]])
 
-        self.cutter_X.Update()
-        self.cutter_Y.Update()
-        self.cutter_Z.Update()
+        self.cutter_YZ.Update()
+        self.cutter_XZ.Update()
+        self.cutter_XY.Update()
         self.clip_plane_widget_X.SetOrigin([self._model.slice_pos["x"], self._model.mesh.center[1], self._model.mesh.center[2]])
         self.clip_plane_widget_Y.SetOrigin([self._model.mesh.center[0], self._model.slice_pos["y"], self._model.mesh.center[2]])
         self.clip_plane_widget_Z.SetOrigin([self._model.mesh.center[0], self._model.mesh.center[2], self._model.slice_pos["z"]])
         
-        self.plotter_ortho_view_x.camera.reset_clipping_range()
-        self.plotter_ortho_view_y.camera.reset_clipping_range()
-        self.plotter_ortho_view_z.camera.reset_clipping_range()
+        self.plotter_ortho_view_yz.camera.reset_clipping_range()
+        self.plotter_ortho_view_xz.camera.reset_clipping_range()
+        self.plotter_ortho_view_xy.camera.reset_clipping_range()
         
         
     
@@ -126,46 +131,83 @@ class OrthoView(QtWidgets.QWidget):
         if self._model.mesh is None:
             return
         
-        self.plotter3D.add_mesh(self._model.mesh, name = "mesh3Doverview", opacity = 0.5)
- 
+        self.plotter3D.add_mesh(self._model.mesh, name = "mesh3Doverview", opacity = 0.5, show_scalar_bar = False)
+        self.plotter3D.show_axes_all()
+        # self.plotter3D.set_scale(self._model.mesh_scale[0], self._model.mesh_scale[1], self._model.mesh_scale[2], True)
                
-        self.cutter_X.SetInputData(self._model.mesh)
-        self.cutter_X.SetCutFunction(self.plane_X)        
-        self.plane_X.SetOrigin(self._model.mesh.center)
-        self.plane_X.SetNormal(1, 0, 0)
+        self.cutter_YZ.SetInputData(self._model.mesh)
+        self.cutter_YZ.SetCutFunction(self.plane_YZ)        
+        self.plane_YZ.SetOrigin(self._model.mesh.center)
+        self.plane_YZ.SetNormal(1, 0, 0)
         
-        self.cutter_Y.SetInputData(self._model.mesh)
-        self.cutter_Y.SetCutFunction(self.plane_Y)        
-        self.plane_Y.SetOrigin(self._model.mesh.center)
-        self.plane_Y.SetNormal(0, 1, 0)
+        self.cutter_XZ.SetInputData(self._model.mesh)
+        self.cutter_XZ.SetCutFunction(self.plane_XZ)        
+        self.plane_XZ.SetOrigin(self._model.mesh.center)
+        self.plane_XZ.SetNormal(0, 1, 0)
         
-        self.cutter_Z.SetInputData(self._model.mesh)
-        self.cutter_Z.SetCutFunction(self.plane_Z)        
-        self.plane_Z.SetOrigin(self._model.mesh.center)
-        self.plane_Z.SetNormal(0, 0, 1)
+        self.cutter_XY.SetInputData(self._model.mesh)
+        self.cutter_XY.SetCutFunction(self.plane_XY)        
+        self.plane_XY.SetOrigin(self._model.mesh.center)
+        self.plane_XY.SetNormal(0, 0, 1)
+        
+        font_scale = 1.5
+        self.plotter_ortho_view_yz.add_mesh(self.cutter_YZ, name = "cutter_YZ", show_scalar_bar = False)
+        self.plotter_ortho_view_yz.view_yz()
+        self.plotter_ortho_view_yz.enable_parallel_projection()
+        self.plotter_ortho_view_yz.add_ruler(
+                pointa=[0, self._model.mesh.bounds[2], self._model.mesh.bounds[4]], # line y
+                pointb=[0, self._model.mesh.bounds[3], self._model.mesh.bounds[4]], # line y
+                flip_range=True,
+                title="Y Distance",
+                font_size_factor = font_scale)
+        self.plotter_ortho_view_yz.add_ruler(
+                pointa=[0, self._model.mesh.bounds[3], self._model.mesh.bounds[5]], # line z
+                pointb=[0, self._model.mesh.bounds[3], self._model.mesh.bounds[4]], # line z
+                flip_range=True,
+                title="Z Distance",
+                font_size_factor = font_scale)
+        
+        self.plotter_ortho_view_xz.add_mesh(self.cutter_XZ, name = "cutter_XZ", show_scalar_bar = False)
+        self.plotter_ortho_view_xz.view_xz()
+        self.plotter_ortho_view_xz.enable_parallel_projection()
+        self.plotter_ortho_view_xz.add_ruler(
+                pointa=[self._model.mesh.bounds[0], self._model.mesh.bounds[2], 0.0], # line x
+                pointb=[self._model.mesh.bounds[1], self._model.mesh.bounds[2], 0.0], # line x
+                flip_range=True,
+                title="X Distance",
+                font_size_factor = font_scale)
+        self.plotter_ortho_view_xz.add_ruler(
+                pointa=[0.0, self._model.mesh.bounds[3], self._model.mesh.bounds[5]], # line z
+                pointb=[0.0, self._model.mesh.bounds[3], self._model.mesh.bounds[4]], # line z
+                flip_range=True,
+                title="Z Distance",
+                font_size_factor = font_scale)
         
         
-        self.plotter_ortho_view_x.add_mesh(self.cutter_X, name = "cutter_X")
-        self.plotter_ortho_view_x.view_yz()
-        self.plotter_ortho_view_x.enable_parallel_projection()
-        
-        self.plotter_ortho_view_y.add_mesh(self.cutter_Y, name = "cutter_Y")
-        self.plotter_ortho_view_y.view_xz()
-        self.plotter_ortho_view_y.enable_parallel_projection()
-        
-        self.plotter_ortho_view_z.add_mesh(self.cutter_Z, name = "cutter_Z")
-        self.plotter_ortho_view_z.view_xy()
-        self.plotter_ortho_view_z.enable_parallel_projection()
-        
+        self.plotter_ortho_view_xy.add_mesh(self.cutter_XY, name = "cutter_XY", show_scalar_bar = False)
+        self.plotter_ortho_view_xy.view_xy()
+        self.plotter_ortho_view_xy.enable_parallel_projection()
+        self.plotter_ortho_view_xy.add_ruler(
+                pointa=[self._model.mesh.bounds[0], self._model.mesh.bounds[2], 0.0], # line x
+                pointb=[self._model.mesh.bounds[1], self._model.mesh.bounds[2], 0.0], # line x
+                flip_range=True,
+                title="X Distance",
+                font_size_factor = font_scale)
+        self.plotter_ortho_view_xy.add_ruler(
+                pointa=[self._model.mesh.bounds[0], self._model.mesh.bounds[3], 0.0], # line y
+                pointb=[self._model.mesh.bounds[0], self._model.mesh.bounds[2], 0.0], # line y
+                flip_range=True,
+                title="Y Distance",
+                font_size_factor = font_scale)
 
         self.update()
         self.update_plots()
         
     def closeEvent(self, QCloseEvent):
         super().closeEvent(QCloseEvent)
-        self.plotter_ortho_view_x.Finalize()
-        self.plotter_ortho_view_y.Finalize()
-        self.plotter_ortho_view_z.Finalize()
+        self.plotter_ortho_view_yz.Finalize()
+        self.plotter_ortho_view_xz.Finalize()
+        self.plotter_ortho_view_xy.Finalize()
         self.plotter3D.Finalize() 
 
         

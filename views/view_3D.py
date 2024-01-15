@@ -27,12 +27,12 @@ class View3D(QtWidgets.QWidget):
         layout = QtWidgets.QGridLayout()    
         self._container.setLayout(layout)    
         
-        self.plotter3d =  QtInteractor(self)    
-        # self.plotter3d.enable_stereo_render()    
+        self.plotter3D =  QtInteractor(self)    
+        # self.plotter3D.enable_stereo_render()    
 
         # threshold          
         self.bt_threshold = QtWidgets.QPushButton("Threshold")
-        layout.addWidget(self.plotter3d, 0, 0)
+        layout.addWidget(self.plotter3D, 0, 0)
         layout.addWidget(self.bt_threshold, 1, 0)
         self.bt_threshold.clicked.connect(main_controller.on_threshold_clicked)
                
@@ -44,7 +44,7 @@ class View3D(QtWidgets.QWidget):
 
     def closeEvent(self, QCloseEvent):
         super().closeEvent(QCloseEvent)
-        self.plotter3d.Finalize() # does not work -> creates weird openGL error
+        self.plotter3D.Finalize() # does not work -> creates weird openGL error
         
         
     @pyqtSlot(pv.DataSet)
@@ -53,5 +53,7 @@ class View3D(QtWidgets.QWidget):
     
  
     def plot_mesh(self):        
-        self.plotter3d.add_mesh(self._model.mesh, name = 'view3D')
+        self.plotter3D.add_mesh(self._model.mesh, name = 'view3D')
+        self.plotter3D.show_axes_all()
+        # self.plotter3D.set_scale(self._model.mesh_scale[0], self._model.mesh_scale[1], self._model.mesh_scale[2], True)
         self.update()

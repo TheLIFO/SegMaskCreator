@@ -86,13 +86,24 @@ class MainView(QtWidgets.QMainWindow):
         self.ui_view = uic.loadUi("views/ui_view.ui")        
         layout.addWidget(self.ui_view.layoutWidget, 0, 2, 1, 1)
 
+
+        self.ui_view.spinBox_x.setDecimals(1)
+        self.ui_view.spinBox_y.setDecimals(1)
+        self.ui_view.spinBox_z.setDecimals(1)
+        
+        self.ui_view.spinBox_x.setSingleStep(0.5)
+        self.ui_view.spinBox_y.setSingleStep(0.5)
+        self.ui_view.spinBox_z.setSingleStep(0.5)
+        
         # connect changing slider to slice_pos change
         self.ui_view.horizontal_slider_x.valueChanged.connect(self.slice_pos_slider_x_changed)
         self.ui_view.horizontal_slider_y.valueChanged.connect(self.slice_pos_slider_y_changed)
         self.ui_view.horizontal_slider_z.valueChanged.connect(self.slice_pos_slider_z_changed)
         
-        # connect changing models slice position to slice_pos
-        # self._model.slice_pos_changed.connect(self.on_slice_pos_slider_changed)
+        # connect changing spinbox to slice_pos
+        self.ui_view.spinBox_x.valueChanged.connect(self.slice_pos_spinBox_x_changed)
+        self.ui_view.spinBox_y.valueChanged.connect(self.slice_pos_spinBox_y_changed)
+        self.ui_view.spinBox_z.valueChanged.connect(self.slice_pos_spinBox_z_changed)
         
         # listen to changing mesh to change bounds of slider 
         self._model.mesh_changed.connect(self.on_slice_bounds_changed)
@@ -110,35 +121,56 @@ class MainView(QtWidgets.QMainWindow):
         self.knot_table_view = KnotTableView(self._model)        
         layout.addWidget(self.knot_table_view, 2, 0, 1, 3)
     
-        
+    # changes of the sliders    
     def slice_pos_slider_x_changed(self):    
-        self._model.slice_pos = {   "x": self.ui_view.horizontal_slider_x.value(),
+        self._model.slice_pos = {   "x": round(self.ui_view.horizontal_slider_x.value()/2),
                                     "y": self._model.slice_pos["y"],
                                     "z": self._model.slice_pos["z"] }
     
     def slice_pos_slider_y_changed(self):        
         self._model.slice_pos = {   "x": self._model.slice_pos["x"],
-                                    "y": self.ui_view.horizontal_slider_y.value(),
+                                    "y": round(self.ui_view.horizontal_slider_y.value()/2),
                                     "z": self._model.slice_pos["z"] }
     
     def slice_pos_slider_z_changed(self):        
         self._model.slice_pos = {   "x": self._model.slice_pos["x"],
                                     "y": self._model.slice_pos["y"],
-                                    "z": self.ui_view.horizontal_slider_z.value() }
+                                    "z": round(self.ui_view.horizontal_slider_z.value()/2) }
+    
+    # changes of the spinboxes
+    def slice_pos_spinBox_x_changed(self):    
+        self._model.slice_pos = {   "x": self.ui_view.spinBox_x.value(),
+                                    "y": self._model.slice_pos["y"],
+                                    "z": self._model.slice_pos["z"] }
+    
+    def slice_pos_spinBox_y_changed(self):        
+        self._model.slice_pos = {   "x": self._model.slice_pos["x"],
+                                    "y": self.ui_view.spinBox_y.value(),
+                                    "z": self._model.slice_pos["z"] }
+    
+    def slice_pos_spinBox_z_changed(self):        
+        self._model.slice_pos = {   "x": self._model.slice_pos["x"],
+                                    "y": self._model.slice_pos["y"],
+                                    "z": self.ui_view.spinBox_z.value() }
+    
     
     
     def on_slice_pos_changed(self):
-        self.ui_view.horizontal_slider_x.setValue(self._model.slice_pos["x"])
-        self.ui_view.horizontal_slider_y.setValue(self._model.slice_pos["y"])
-        self.ui_view.horizontal_slider_z.setValue(self._model.slice_pos["z"])
+        self.ui_view.horizontal_slider_x.setValue(round(self._model.slice_pos["x"] * 2))
+        self.ui_view.horizontal_slider_y.setValue(round(self._model.slice_pos["y"] * 2))
+        self.ui_view.horizontal_slider_z.setValue(round(self._model.slice_pos["z"] * 2))
+        
+        self.ui_view.spinBox_x.setValue(self._model.slice_pos["x"])
+        self.ui_view.spinBox_y.setValue(self._model.slice_pos["y"])
+        self.ui_view.spinBox_z.setValue(self._model.slice_pos["z"])
         
     def on_slice_bounds_changed(self):
-        self.ui_view.horizontal_slider_x.setMinimum(self._model.slice_bounds["x"]["min"])
-        self.ui_view.horizontal_slider_x.setMaximum(self._model.slice_bounds["x"]["max"])
-        self.ui_view.horizontal_slider_y.setMinimum(self._model.slice_bounds["y"]["min"])
-        self.ui_view.horizontal_slider_y.setMaximum(self._model.slice_bounds["y"]["max"])
-        self.ui_view.horizontal_slider_z.setMinimum(self._model.slice_bounds["z"]["min"])
-        self.ui_view.horizontal_slider_z.setMaximum(self._model.slice_bounds["z"]["max"])
+        self.ui_view.horizontal_slider_x.setMinimum(round(self._model.slice_bounds["x"]["min"] * 2))
+        self.ui_view.horizontal_slider_x.setMaximum(round(self._model.slice_bounds["x"]["max"] * 2))
+        self.ui_view.horizontal_slider_y.setMinimum(round(self._model.slice_bounds["y"]["min"] * 2))
+        self.ui_view.horizontal_slider_y.setMaximum(round(self._model.slice_bounds["y"]["max"] * 2))
+        self.ui_view.horizontal_slider_z.setMinimum(round(self._model.slice_bounds["z"]["min"] * 2))
+        self.ui_view.horizontal_slider_z.setMaximum(round(self._model.slice_bounds["z"]["max"] * 2))
         
         self.ui_view.spinBox_x.setMinimum(self._model.slice_bounds["x"]["min"])
         self.ui_view.spinBox_x.setMaximum(self._model.slice_bounds["x"]["max"])

@@ -3,7 +3,7 @@ from PyQt5.QtWidgets import QWidget
 from PyQt5.QtCore import Qt, QObject, pyqtSignal
 import pyvista as pv
 from model.knot_data import KnotData 
-
+import nrrd
     
 class Model(QObject):
     # signals when model changes
@@ -19,6 +19,7 @@ class Model(QObject):
         
         self._knotdata = None    
         self._mesh = None
+        self.mesh_scale = None
         self._threshold = 0        
         self._slice_bounds = { "x": {"min": 0, "max": 0},
                                "y": {"min": 0, "max": 0},
@@ -33,24 +34,39 @@ class Model(QObject):
         reader = pyvista.get_reader(filename)
         reader.show_progress()
         mesh = reader.read() 
-        # mesh = mesh.threshold(10)  
+        mesh = mesh.threshold(100)  
         
+        self.mesh_scale = (1, 1, 1)
+        self.mesh_origin = (0, 0, 0)
+        
+        
+        header = nrrd.read_header(filename)
+        try:
+            spacing_dirs = header["space directions"]
+            self.mesh_scale = (spacing_dirs[0, 0], spacing_dirs[1, 1], spacing_dirs[2, 2])
+            self.mesh_origin = header["space origin"]
+        except:
+            pass
+        
+        mesh = mesh.translate(self.mesh_origin)
+        mesh = mesh.scale(self.mesh_scale)
         # obtain new bounds
         xmin, xmax, ymin, ymax, zmin, zmax = mesh.bounds 
-        xmin = int(xmin)
-        xmax = int(xmax)
-        ymin = int(ymin)
-        ymax = int(ymax)
-        zmin = int(zmin)
-        zmax = int(zmax)
+        xmin = round(xmin * 2) / 2
+        xmax = round(xmax * 2) / 2
+        ymin = round(ymin * 2) / 2
+        ymax = round(ymax * 2) / 2
+        zmin = round(zmin * 2) / 2
+        zmax = round(zmax * 2) / 2
         self.slice_bounds = {   "x": {"min": xmin, "max": xmax},
                                 "y": {"min": ymin, "max": ymax},
                                 "z": {"min": zmin, "max": zmax} }
-        self.slice_pos = {  "x": int(mesh.center[0]),
-                            "y": int(mesh.center[1]),
-                            "z": int(mesh.center[2]) }
-        self.mesh = mesh # set new mesh here to trigger also setting new bounds
+        self.slice_pos = {  "x": round(mesh.center[0] * 2) / 2,
+                            "y": round(mesh.center[1] * 2) / 2,
+                            "z": round(mesh.center[2] * 2) / 2 }
+        
         self.knotdata = KnotData(filename)
+        self.mesh = mesh # set new mesh here to trigger also setting new bounds
         
    
     @property

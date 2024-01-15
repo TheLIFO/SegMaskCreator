@@ -6,8 +6,8 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>452</width>
-    <height>310</height>
+    <width>623</width>
+    <height>417</height>
    </rect>
   </property>
   <property name="windowTitle">
@@ -50,7 +50,7 @@
       </widget>
      </item>
      <item>
-      <widget class="QSpinBox" name="spinBox_x"/>
+      <widget class="QDoubleSpinBox" name="spinBox_x"/>
      </item>
      <item>
       <widget class="QSlider" name="horizontal_slider_x">
@@ -74,7 +74,7 @@
       </widget>
      </item>
      <item>
-      <widget class="QSpinBox" name="spinBox_y"/>
+      <widget class="QDoubleSpinBox" name="spinBox_y"/>
      </item>
      <item>
       <widget class="QSlider" name="horizontal_slider_y">
@@ -98,7 +98,7 @@
       </widget>
      </item>
      <item>
-      <widget class="QSpinBox" name="spinBox_z"/>
+      <widget class="QDoubleSpinBox" name="spinBox_z"/>
      </item>
      <item>
       <widget class="QSlider" name="horizontal_slider_z">
@@ -112,150 +112,5 @@
   </widget>
  </widget>
  <resources/>
- <connections>
-  <connection>
-   <sender>horizontal_slider_z</sender>
-   <signal>valueChanged(int)</signal>
-   <receiver>spinBox_z</receiver>
-   <slot>setValue(int)</slot>
-   <hints>
-    <hint type="sourcelabel">
-     <x>27</x>
-     <y>162</y>
-    </hint>
-    <hint type="destinationlabel">
-     <x>23</x>
-     <y>224</y>
-    </hint>
-   </hints>
-  </connection>
-  <connection>
-   <sender>horizontal_slider_y</sender>
-   <signal>sliderMoved(int)</signal>
-   <receiver>spinBox_y</receiver>
-   <slot>setValue(int)</slot>
-   <hints>
-    <hint type="sourcelabel">
-     <x>55</x>
-     <y>248</y>
-    </hint>
-    <hint type="destinationlabel">
-     <x>62</x>
-     <y>59</y>
-    </hint>
-   </hints>
-  </connection>
-  <connection>
-   <sender>horizontal_slider_y</sender>
-   <signal>valueChanged(int)</signal>
-   <receiver>spinBox_y</receiver>
-   <slot>setValue(int)</slot>
-   <hints>
-    <hint type="sourcelabel">
-     <x>19</x>
-     <y>241</y>
-    </hint>
-    <hint type="destinationlabel">
-     <x>18</x>
-     <y>59</y>
-    </hint>
-   </hints>
-  </connection>
-  <connection>
-   <sender>horizontal_slider_x</sender>
-   <signal>valueChanged(int)</signal>
-   <receiver>spinBox_x</receiver>
-   <slot>setValue(int)</slot>
-   <hints>
-    <hint type="sourcelabel">
-     <x>26</x>
-     <y>81</y>
-    </hint>
-    <hint type="destinationlabel">
-     <x>27</x>
-     <y>141</y>
-    </hint>
-   </hints>
-  </connection>
-  <connection>
-   <sender>spinBox_z</sender>
-   <signal>valueChanged(int)</signal>
-   <receiver>horizontal_slider_z</receiver>
-   <slot>setValue(int)</slot>
-   <hints>
-    <hint type="sourcelabel">
-     <x>65</x>
-     <y>219</y>
-    </hint>
-    <hint type="destinationlabel">
-     <x>68</x>
-     <y>159</y>
-    </hint>
-   </hints>
-  </connection>
-  <connection>
-   <sender>horizontal_slider_z</sender>
-   <signal>sliderMoved(int)</signal>
-   <receiver>spinBox_z</receiver>
-   <slot>setValue(int)</slot>
-   <hints>
-    <hint type="sourcelabel">
-     <x>47</x>
-     <y>158</y>
-    </hint>
-    <hint type="destinationlabel">
-     <x>48</x>
-     <y>223</y>
-    </hint>
-   </hints>
-  </connection>
-  <connection>
-   <sender>horizontal_slider_x</sender>
-   <signal>sliderMoved(int)</signal>
-   <receiver>spinBox_x</receiver>
-   <slot>setValue(int)</slot>
-   <hints>
-    <hint type="sourcelabel">
-     <x>75</x>
-     <y>82</y>
-    </hint>
-    <hint type="destinationlabel">
-     <x>70</x>
-     <y>141</y>
-    </hint>
-   </hints>
-  </connection>
-  <connection>
-   <sender>spinBox_y</sender>
-   <signal>valueChanged(int)</signal>
-   <receiver>horizontal_slider_y</receiver>
-   <slot>setValue(int)</slot>
-   <hints>
-    <hint type="sourcelabel">
-     <x>116</x>
-     <y>50</y>
-    </hint>
-    <hint type="destinationlabel">
-     <x>35</x>
-     <y>248</y>
-    </hint>
-   </hints>
-  </connection>
-  <connection>
-   <sender>spinBox_x</sender>
-   <signal>valueChanged(int)</signal>
-   <receiver>horizontal_slider_x</receiver>
-   <slot>setValue(int)</slot>
-   <hints>
-    <hint type="sourcelabel">
-     <x>53</x>
-     <y>136</y>
-    </hint>
-    <hint type="destinationlabel">
-     <x>46</x>
-     <y>81</y>
-    </hint>
-   </hints>
-  </connection>
- </connections>
+ <connections/>
 </ui>
