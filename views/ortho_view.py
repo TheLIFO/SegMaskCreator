@@ -28,9 +28,17 @@ class OrthoView(QtWidgets.QWidget):
         
         
         # plotter for several cut 2D views
-        self.plotter_ortho_views =  QtInteractor(self, shape=(2, 2))   
-        self.plotter_ortho_views.enable_image_style()
-        layout.addWidget(self.plotter_ortho_views, 0, 1)
+        self.plotter_ortho_view_x =  QtInteractor(self)   
+        self.plotter_ortho_view_x.enable_image_style()
+        layout.addWidget(self.plotter_ortho_view_x, 0, 1)
+        
+        self.plotter_ortho_view_y =  QtInteractor(self)
+        self.plotter_ortho_view_y.enable_image_style()
+        layout.addWidget(self.plotter_ortho_view_y, 1, 0)
+        
+        self.plotter_ortho_view_z =  QtInteractor(self)
+        self.plotter_ortho_view_z.enable_image_style()
+        layout.addWidget(self.plotter_ortho_view_z, 1, 1)
         
         
         # listen to model event signals     
@@ -65,27 +73,18 @@ class OrthoView(QtWidgets.QWidget):
                                     "y": self._model.slice_pos["y"],
                                     "z": self._model.slice_pos["z"] }
         
-        print("pos: ", self._model.slice_pos, " - old_orig: ", origin, " - new_orig: ", new_origin)
-
-    
     def on_clip_plane_Y_changed(self, normal, origin):
         new_origin = [round(a) for a in list(origin)]                
         self._model.slice_pos =  {  "x": self._model.slice_pos["x"],
                                     "y": new_origin[1],
                                     "z": self._model.slice_pos["z"] }          
 
-        print("pos: ", self._model.slice_pos, " - old_orig: ", origin, " - new_orig: ", new_origin)
-
-    
     def on_clip_plane_Z_changed(self, normal, origin):
         new_origin = [round(a) for a in list(origin)]        
         self._model.slice_pos = {   "x": self._model.slice_pos["x"],
                                     "y": self._model.slice_pos["y"],
                                     "z": new_origin[2] }
 
-        print("pos: ", self._model.slice_pos, " - old_orig: ", origin, " - new_orig: ", new_origin)
-
-        
                 
     @pyqtSlot(pv.DataSet)
     def on_mesh_changed(self):
@@ -117,7 +116,10 @@ class OrthoView(QtWidgets.QWidget):
         self.clip_plane_widget_Y.SetOrigin([self._model.mesh.center[0], self._model.slice_pos["y"], self._model.mesh.center[2]])
         self.clip_plane_widget_Z.SetOrigin([self._model.mesh.center[0], self._model.mesh.center[2], self._model.slice_pos["z"]])
         
-        self.plotter_ortho_views.camera.reset_clipping_range()
+        self.plotter_ortho_view_x.camera.reset_clipping_range()
+        self.plotter_ortho_view_y.camera.reset_clipping_range()
+        self.plotter_ortho_view_z.camera.reset_clipping_range()
+        
         
     
     def update_mesh(self):                
@@ -126,50 +128,44 @@ class OrthoView(QtWidgets.QWidget):
         
         self.plotter3D.add_mesh(self._model.mesh, name = "mesh3Doverview", opacity = 0.5)
  
-        self.plotter_ortho_views.subplot(0, 0)
-        self.plotter_ortho_views.add_mesh(self._model.mesh, name = "mesh3D", opacity = 0.5)
-        
+               
         self.cutter_X.SetInputData(self._model.mesh)
-        self.cutter_X.SetCutFunction(self.plane_X)
-        # self.plane_X.SetOrigin([self._model.slice_pos["x"], self._model.slice_pos["y"], self._model.slice_pos["z"]])
+        self.cutter_X.SetCutFunction(self.plane_X)        
         self.plane_X.SetOrigin(self._model.mesh.center)
         self.plane_X.SetNormal(1, 0, 0)
         
         self.cutter_Y.SetInputData(self._model.mesh)
-        self.cutter_Y.SetCutFunction(self.plane_Y)
-        # self.plane_Y.SetOrigin([self._model.slice_pos["x"], self._model.slice_pos["y"], self._model.slice_pos["z"]])#
+        self.cutter_Y.SetCutFunction(self.plane_Y)        
         self.plane_Y.SetOrigin(self._model.mesh.center)
         self.plane_Y.SetNormal(0, 1, 0)
         
         self.cutter_Z.SetInputData(self._model.mesh)
-        self.cutter_Z.SetCutFunction(self.plane_Z)
-        self.plane_Z.SetOrigin([self._model.slice_pos["x"], self._model.slice_pos["y"], self._model.slice_pos["z"]])
+        self.cutter_Z.SetCutFunction(self.plane_Z)        
         self.plane_Z.SetOrigin(self._model.mesh.center)
         self.plane_Z.SetNormal(0, 0, 1)
         
-        self.plotter_ortho_views.subplot(0, 1)
-        self.plotter_ortho_views.add_mesh(self.cutter_X, name = "cutter_X")
-        self.plotter_ortho_views.view_yz()
-        self.plotter_ortho_views.enable_parallel_projection()
         
+        self.plotter_ortho_view_x.add_mesh(self.cutter_X, name = "cutter_X")
+        self.plotter_ortho_view_x.view_yz()
+        self.plotter_ortho_view_x.enable_parallel_projection()
         
-        self.plotter_ortho_views.subplot(1, 0)
-        self.plotter_ortho_views.add_mesh(self.cutter_Y, name = "cutter_Y")
-        self.plotter_ortho_views.view_xz()
-        self.plotter_ortho_views.enable_parallel_projection()
+        self.plotter_ortho_view_y.add_mesh(self.cutter_Y, name = "cutter_Y")
+        self.plotter_ortho_view_y.view_xz()
+        self.plotter_ortho_view_y.enable_parallel_projection()
         
-        
-        self.plotter_ortho_views.subplot(1, 1)
-        self.plotter_ortho_views.add_mesh(self.cutter_Z, name = "cutter_Z")
-        self.plotter_ortho_views.view_xy()
-        self.plotter_ortho_views.enable_parallel_projection()
+        self.plotter_ortho_view_z.add_mesh(self.cutter_Z, name = "cutter_Z")
+        self.plotter_ortho_view_z.view_xy()
+        self.plotter_ortho_view_z.enable_parallel_projection()
         
 
         self.update()
+        self.update_plots()
         
     def closeEvent(self, QCloseEvent):
         super().closeEvent(QCloseEvent)
-        self.plotter_ortho_views.Finalize()
+        self.plotter_ortho_view_x.Finalize()
+        self.plotter_ortho_view_y.Finalize()
+        self.plotter_ortho_view_z.Finalize()
         self.plotter3D.Finalize() 
 
         

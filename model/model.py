@@ -83,8 +83,7 @@ class Model(QObject):
     def slice_pos(self, pos):
         # only change and emit signal if values have really changed
         if not (self._slice_pos == pos):
-            self._slice_pos = pos
-            print ("slice_pos changed")
+            self._slice_pos = pos            
             self.slice_pos_changed.emit(self._slice_pos)
     
     @property 

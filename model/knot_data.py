@@ -53,7 +53,7 @@ class KnotData():
         except:            
             return None
         
-        print (self._header)
+        # print (self._header)
         
         return self._header
     
