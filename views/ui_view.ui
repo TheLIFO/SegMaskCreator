@@ -6,8 +6,8 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>623</width>
-    <height>417</height>
+    <width>1113</width>
+    <height>741</height>
    </rect>
   </property>
   <property name="windowTitle">
@@ -18,72 +18,99 @@
     <rect>
      <x>0</x>
      <y>0</y>
-     <width>451</width>
-     <height>311</height>
+     <width>471</width>
+     <height>691</height>
     </rect>
    </property>
    <property name="title">
     <string>GroupBox</string>
    </property>
-   <widget class="QWidget" name="layoutWidget">
+   <widget class="QWidget" name="gridLayoutWidget">
     <property name="geometry">
      <rect>
-      <x>0</x>
+      <x>10</x>
       <y>20</y>
-      <width>441</width>
-      <height>317</height>
+      <width>442</width>
+      <height>634</height>
      </rect>
     </property>
-    <layout class="QVBoxLayout" name="verticalLayout">
-     <item>
-      <widget class="QLabel" name="label_x">
-       <property name="font">
-        <font>
-         <pointsize>14</pointsize>
-         <weight>75</weight>
-         <bold>true</bold>
-        </font>
-       </property>
-       <property name="text">
-        <string>X-plane</string>
-       </property>
-      </widget>
+    <layout class="QGridLayout" name="gridLayout">
+     <item row="7" column="1" colspan="2">
+      <widget class="QDoubleSpinBox" name="spinBox_z"/>
      </item>
-     <item>
-      <widget class="QDoubleSpinBox" name="spinBox_x"/>
-     </item>
-     <item>
-      <widget class="QSlider" name="horizontal_slider_x">
-       <property name="orientation">
-        <enum>Qt::Horizontal</enum>
-       </property>
-      </widget>
-     </item>
-     <item>
-      <widget class="QLabel" name="label_y">
-       <property name="font">
-        <font>
-         <pointsize>14</pointsize>
-         <weight>75</weight>
-         <bold>true</bold>
-        </font>
-       </property>
-       <property name="text">
-        <string>Y-plane</string>
-       </property>
-      </widget>
-     </item>
-     <item>
+     <item row="4" column="1" colspan="2">
       <widget class="QDoubleSpinBox" name="spinBox_y"/>
      </item>
-     <item>
-      <widget class="QSlider" name="horizontal_slider_y">
+     <item row="6" column="2">
+      <widget class="QCheckBox" name="checkBox_show_z">
+       <property name="text">
+        <string>Show</string>
+       </property>
+      </widget>
+     </item>
+     <item row="3" column="2">
+      <widget class="QCheckBox" name="checkBox_show_y">
+       <property name="text">
+        <string>Show</string>
+       </property>
+      </widget>
+     </item>
+     <item row="14" column="1" colspan="2">
+      <widget class="QDoubleSpinBox" name="spinBox_r_x"/>
+     </item>
+     <item row="9" column="2">
+      <widget class="QCheckBox" name="checkBox_show_r">
+       <property name="text">
+        <string>Show</string>
+       </property>
+      </widget>
+     </item>
+     <item row="0" column="2">
+      <widget class="QCheckBox" name="checkBox_show_x">
+       <property name="text">
+        <string>Show</string>
+       </property>
+      </widget>
+     </item>
+     <item row="10" column="1" colspan="2">
+      <widget class="QDoubleSpinBox" name="spinBox_r"/>
+     </item>
+     <item row="15" column="0" colspan="3">
+      <widget class="QSlider" name="horizontal_slider_r_x">
        <property name="orientation">
         <enum>Qt::Horizontal</enum>
        </property>
       </widget>
      </item>
-     <item>
+     <item row="10" column="0">
+      <widget class="QLabel" name="label_r_val">
+       <property name="font">
+        <font>
+         <pointsize>11</pointsize>
+         <weight>50</weight>
+         <bold>false</bold>
+        </font>
+       </property>
+       <property name="text">
+        <string>Radius</string>
+       </property>
+      </widget>
+     </item>
+     <item row="9" column="0" colspan="2">
+      <widget class="QLabel" name="label_r">
+       <property name="font">
+        <font>
+         <pointsize>14</pointsize>
+         <weight>75</weight>
+         <bold>true</bold>
+        </font>
+       </property>
+       <property name="text">
+        <string>Circular-cut-plane</string>
+       </property>
+      </widget>
+     </item>
+     <item row="6" column="0" colspan="2">
       <widget class="QLabel" name="label_z">
        <property name="font">
         <font>
@@ -93,15 +120,168 @@
         </font>
        </property>
        <property name="text">
-        <string>Z-plane</string>
+        <string>Z-Plane</string>
        </property>
       </widget>
      </item>
-     <item>
-      <widget class="QDoubleSpinBox" name="spinBox_z"/>
+     <item row="3" column="0" colspan="2">
+      <widget class="QLabel" name="label_y">
+       <property name="font">
+        <font>
+         <pointsize>14</pointsize>
+         <weight>75</weight>
+         <bold>true</bold>
+        </font>
+       </property>
+       <property name="text">
+        <string>Y-Plane</string>
+       </property>
+      </widget>
      </item>
-     <item>
+     <item row="17" column="0" colspan="3">
+      <widget class="QSlider" name="horizontal_slider_r_y">
+       <property name="orientation">
+        <enum>Qt::Horizontal</enum>
+       </property>
+      </widget>
+     </item>
+     <item row="0" column="0" colspan="2">
+      <widget class="QLabel" name="label_x">
+       <property name="font">
+        <font>
+         <pointsize>14</pointsize>
+         <weight>75</weight>
+         <bold>true</bold>
+        </font>
+       </property>
+       <property name="text">
+        <string>X-Plane</string>
+       </property>
+      </widget>
+     </item>
+     <item row="16" column="0">
+      <widget class="QLabel" name="label_r_y">
+       <property name="font">
+        <font>
+         <pointsize>11</pointsize>
+         <weight>50</weight>
+         <bold>false</bold>
+        </font>
+       </property>
+       <property name="text">
+        <string>Y-Position</string>
+       </property>
+      </widget>
+     </item>
+     <item row="1" column="1" colspan="2">
+      <widget class="QDoubleSpinBox" name="spinBox_x"/>
+     </item>
+     <item row="1" column="0">
+      <widget class="QLabel" name="label_x_pos">
+       <property name="font">
+        <font>
+         <pointsize>11</pointsize>
+         <weight>50</weight>
+         <bold>false</bold>
+        </font>
+       </property>
+       <property name="text">
+        <string>Axis-Position</string>
+       </property>
+      </widget>
+     </item>
+     <item row="16" column="1" colspan="2">
+      <widget class="QDoubleSpinBox" name="spinBox_r_y"/>
+     </item>
+     <item row="4" column="0">
+      <widget class="QLabel" name="label_y_pos">
+       <property name="font">
+        <font>
+         <pointsize>11</pointsize>
+         <weight>50</weight>
+         <bold>false</bold>
+        </font>
+       </property>
+       <property name="text">
+        <string>Axis-Position</string>
+       </property>
+      </widget>
+     </item>
+     <item row="12" column="0">
+      <widget class="QLabel" name="label_r_a">
+       <property name="font">
+        <font>
+         <pointsize>11</pointsize>
+         <weight>50</weight>
+         <bold>false</bold>
+        </font>
+       </property>
+       <property name="text">
+        <string>Angle</string>
+       </property>
+      </widget>
+     </item>
+     <item row="8" column="0" colspan="3">
       <widget class="QSlider" name="horizontal_slider_z">
+       <property name="orientation">
+        <enum>Qt::Horizontal</enum>
+       </property>
+      </widget>
+     </item>
+     <item row="2" column="0" colspan="3">
+      <widget class="QSlider" name="horizontal_slider_x">
+       <property name="orientation">
+        <enum>Qt::Horizontal</enum>
+       </property>
+      </widget>
+     </item>
+     <item row="5" column="0" colspan="3">
+      <widget class="QSlider" name="horizontal_slider_y">
+       <property name="orientation">
+        <enum>Qt::Horizontal</enum>
+       </property>
+      </widget>
+     </item>
+     <item row="7" column="0">
+      <widget class="QLabel" name="label_z_pos">
+       <property name="font">
+        <font>
+         <pointsize>11</pointsize>
+         <weight>50</weight>
+         <bold>false</bold>
+        </font>
+       </property>
+       <property name="text">
+        <string>Axis-Position</string>
+       </property>
+      </widget>
+     </item>
+     <item row="14" column="0">
+      <widget class="QLabel" name="label_r_x">
+       <property name="font">
+        <font>
+         <pointsize>11</pointsize>
+         <weight>50</weight>
+         <bold>false</bold>
+        </font>
+       </property>
+       <property name="text">
+        <string>X-Position</string>
+       </property>
+      </widget>
+     </item>
+     <item row="11" column="0" colspan="3">
+      <widget class="QSlider" name="horizontal_slider_r">
+       <property name="orientation">
+        <enum>Qt::Horizontal</enum>
+       </property>
+      </widget>
+     </item>
+     <item row="12" column="1" colspan="2">
+      <widget class="QDoubleSpinBox" name="spinBox_r_a"/>
+     </item>
+     <item row="13" column="0" colspan="3">
+      <widget class="QSlider" name="horizontal_slider_r_a">
        <property name="orientation">
         <enum>Qt::Horizontal</enum>
        </property>

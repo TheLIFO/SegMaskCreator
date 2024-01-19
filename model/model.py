@@ -11,6 +11,7 @@ class Model(QObject):
     mesh_changed = pyqtSignal(pv.DataSet)
     slice_bounds_changed = pyqtSignal(object)
     slice_pos_changed = pyqtSignal(object)
+    show_cut_views_changed = pyqtSignal(object)
 
     
     # constructor
@@ -23,9 +24,17 @@ class Model(QObject):
         self._threshold = 0        
         self._slice_bounds = { "x": {"min": 0, "max": 0},
                                "y": {"min": 0, "max": 0},
-                               "z": {"min": 0, "max": 0} }
-        self._slice_pos =    { "x": 0, "y": 0, "z": 0 }
+                               "z": {"min": 0, "max": 0},
+                               "r": {"min": 0, "max": 0},
+                               "r_x": {"min": 0, "max": 0},
+                               "r_z": {"min": 0, "max": 0},
+                               "r_a": {"min": 0.0, "max": 360.0}}
+        self._slice_pos =    { "x": 0, "y": 0, "z": 0, "r": 0, "r_x": 0, "r_y": 0, "r_a": 0  }
 
+        self.show_cut_views = {"x": False,
+                               "y": False,
+                               "z": False,
+                               "r": False }
         
     
     def load_imagedata(self, filename):
@@ -60,10 +69,17 @@ class Model(QObject):
         zmax = round(zmax * 2) / 2
         self.slice_bounds = {   "x": {"min": xmin, "max": xmax},
                                 "y": {"min": ymin, "max": ymax},
-                                "z": {"min": zmin, "max": zmax} }
+                                "z": {"min": zmin, "max": zmax},
+                                "r": {"min": 0, "max": max(round((xmax-xmin)/2), round((ymax-ymin)/2))},
+                                "r_x": {"min": xmin, "max": xmax},
+                                "r_y": {"min": ymin, "max": ymax} }
         self.slice_pos = {  "x": round(mesh.center[0] * 2) / 2,
                             "y": round(mesh.center[1] * 2) / 2,
-                            "z": round(mesh.center[2] * 2) / 2 }
+                            "z": round(mesh.center[2] * 2) / 2, 
+                            "r": max(round((xmax-xmin)/2), round((ymax-ymin)/2)) / 2,
+                            "r_x": round(mesh.center[0] * 2) / 2,
+                            "r_y": round(mesh.center[1] * 2) / 2,
+                            "r_a": 0.0}
         
         self.knotdata = KnotData(filename)
         self.mesh = mesh # set new mesh here to trigger also setting new bounds
@@ -99,7 +115,9 @@ class Model(QObject):
     def slice_pos(self, pos):
         # only change and emit signal if values have really changed
         if not (self._slice_pos == pos):
-            self._slice_pos = pos            
+            self._slice_pos = pos    
+            if self._slice_pos["r_a"] == 360:
+                self._slice_pos["r_a"] = 0        
             self.slice_pos_changed.emit(self._slice_pos)
     
     @property 
@@ -111,7 +129,13 @@ class Model(QObject):
         if not (self._slice_bounds == bounds):
             self._slice_bounds = bounds
             self.slice_bounds_changed.emit(self._slice_bounds)
-            
+    
+    @property
+    def show_cut_views(self):
+        return self._show_cut_views
+    @show_cut_views.setter
+    def show_cut_views(self, values):
+        self._show_cut_views = values     
     
         
   

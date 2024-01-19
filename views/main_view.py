@@ -84,7 +84,7 @@ class MainView(QtWidgets.QMainWindow):
         # add additional frames such as buttons and the 3D view
         
         self.ui_view = uic.loadUi("views/ui_view.ui")        
-        layout.addWidget(self.ui_view.layoutWidget, 0, 2, 1, 1)
+        layout.addWidget(self.ui_view.gridLayoutWidget, 0, 2, 1, 1)
 
 
         self.ui_view.spinBox_x.setDecimals(1)
@@ -100,10 +100,26 @@ class MainView(QtWidgets.QMainWindow):
         self.ui_view.horizontal_slider_y.valueChanged.connect(self.slice_pos_slider_y_changed)
         self.ui_view.horizontal_slider_z.valueChanged.connect(self.slice_pos_slider_z_changed)
         
+        self.ui_view.horizontal_slider_r.valueChanged.connect(self.slice_pos_slider_r_changed)
+        self.ui_view.horizontal_slider_r_x.valueChanged.connect(self.slice_pos_slider_r_x_changed)
+        self.ui_view.horizontal_slider_r_y.valueChanged.connect(self.slice_pos_slider_r_y_changed)
+        
+        
         # connect changing spinbox to slice_pos
         self.ui_view.spinBox_x.valueChanged.connect(self.slice_pos_spinBox_x_changed)
         self.ui_view.spinBox_y.valueChanged.connect(self.slice_pos_spinBox_y_changed)
         self.ui_view.spinBox_z.valueChanged.connect(self.slice_pos_spinBox_z_changed)
+        
+        self.ui_view.spinBox_r.valueChanged.connect(self.slice_pos_spinBox_r_changed)
+        self.ui_view.spinBox_r_x.valueChanged.connect(self.slice_pos_spinBox_r_x_changed)
+        self.ui_view.spinBox_r_y.valueChanged.connect(self.slice_pos_spinBox_r_y_changed)
+        
+        # conncect checkboxes for cut_views to show_cut_views_changed
+        
+        self.ui_view.checkBox_show_x.stateChanged.connect(self.show_cut_views_changed)
+        self.ui_view.checkBox_show_y.stateChanged.connect(self.show_cut_views_changed)
+        self.ui_view.checkBox_show_z.stateChanged.connect(self.show_cut_views_changed)
+        self.ui_view.checkBox_show_r.stateChanged.connect(self.show_cut_views_changed)
         
         # listen to changing mesh to change bounds of slider 
         self._model.mesh_changed.connect(self.on_slice_bounds_changed)
@@ -123,36 +139,147 @@ class MainView(QtWidgets.QMainWindow):
     
     # changes of the sliders    
     def slice_pos_slider_x_changed(self):    
-        self._model.slice_pos = {   "x": round(self.ui_view.horizontal_slider_x.value()/2),
+        self._model.slice_pos = {   "x": self.ui_view.horizontal_slider_x.value()/2,
                                     "y": self._model.slice_pos["y"],
-                                    "z": self._model.slice_pos["z"] }
+                                    "z": self._model.slice_pos["z"],
+                                    "r": self._model.slice_pos["r"],
+                                    "r_a": self._model.slice_pos["r_a"],
+                                    "r_x": self._model.slice_pos["r_x"],
+                                    "r_y": self._model.slice_pos["r_y"] }
     
     def slice_pos_slider_y_changed(self):        
         self._model.slice_pos = {   "x": self._model.slice_pos["x"],
-                                    "y": round(self.ui_view.horizontal_slider_y.value()/2),
-                                    "z": self._model.slice_pos["z"] }
+                                    "y": self.ui_view.horizontal_slider_y.value()/2,
+                                    "z": self._model.slice_pos["z"],
+                                    "r": self._model.slice_pos["r"],
+                                    "r_a": self._model.slice_pos["r_a"],
+                                    "r_x": self._model.slice_pos["r_x"],
+                                    "r_y": self._model.slice_pos["r_y"] }
     
-    def slice_pos_slider_z_changed(self):        
+    def slice_pos_slider_z_changed(self):   
         self._model.slice_pos = {   "x": self._model.slice_pos["x"],
                                     "y": self._model.slice_pos["y"],
-                                    "z": round(self.ui_view.horizontal_slider_z.value()/2) }
+                                    "z": self.ui_view.horizontal_slider_z.value()/2,
+                                    "r": self._model.slice_pos["r"],
+                                    "r_a": self._model.slice_pos["r_a"],
+                                    "r_x": self._model.slice_pos["r_x"],
+                                    "r_y": self._model.slice_pos["r_y"] }
+    
+    
+    def slice_pos_slider_r_changed(self):
+        self._model.slice_pos = {   "x": self._model.slice_pos["x"],
+                                    "y": self._model.slice_pos["y"],
+                                    "z": self._model.slice_pos["z"],
+                                    "r": self.ui_view.horizontal_slider_r.value()/2,
+                                    "r_a": self._model.slice_pos["r_a"],
+                                    "r_x": self._model.slice_pos["r_x"],
+                                    "r_y": self._model.slice_pos["r_y"] }
+    
+    def slice_pos_slider_r_a_changed(self):
+        self._model.slice_pos = {   "x": self._model.slice_pos["x"],
+                                    "y": self._model.slice_pos["y"],
+                                    "z": self._model.slice_pos["z"],
+                                    "r": self._model.slice_pos["r"],
+                                    "r_a": self.ui_view.horizontal_slider_r_a.value()/2,
+                                    "r_x": self._model.slice_pos["r_x"],
+                                    "r_y": self._model.slice_pos["r_y"] }
+        
+    def slice_pos_slider_r_x_changed(self):
+        self._model.slice_pos = {   "x": self._model.slice_pos["x"],
+                                    "y": self._model.slice_pos["y"],
+                                    "z": self._model.slice_pos["z"],
+                                    "r": self._model.slice_pos["r"],
+                                    "r_a": self._model.slice_pos["r_a"],
+                                    "r_x": self.ui_view.horizontal_slider_r_x.value()/2,
+                                    "r_y": self._model.slice_pos["r_y"] }
+    def slice_pos_slider_r_y_changed(self):
+        self._model.slice_pos = {   "x": self._model.slice_pos["x"],
+                                    "y": self._model.slice_pos["y"],
+                                    "z": self._model.slice_pos["z"],
+                                    "r": self._model.slice_pos["r"],
+                                    "r_a": self._model.slice_pos["r_a"],
+                                    "r_x": self._model.slice_pos["r_x"],
+                                    "r_y": self.ui_view.horizontal_slider_r_y.value()/2 }
+    
     
     # changes of the spinboxes
     def slice_pos_spinBox_x_changed(self):    
         self._model.slice_pos = {   "x": self.ui_view.spinBox_x.value(),
                                     "y": self._model.slice_pos["y"],
-                                    "z": self._model.slice_pos["z"] }
+                                    "z": self._model.slice_pos["z"],
+                                    "r": self._model.slice_pos["r"],
+                                    "r_a": self._model.slice_pos["r_a"],
+                                    "r_x": self._model.slice_pos["r_x"],
+                                    "r_y": self._model.slice_pos["r_y"]}
     
     def slice_pos_spinBox_y_changed(self):        
         self._model.slice_pos = {   "x": self._model.slice_pos["x"],
                                     "y": self.ui_view.spinBox_y.value(),
-                                    "z": self._model.slice_pos["z"] }
+                                    "z": self._model.slice_pos["z"],
+                                    "r": self._model.slice_pos["r"],
+                                    "r_a": self._model.slice_pos["r_a"],
+                                    "r_x": self._model.slice_pos["r_x"],
+                                    "r_y": self._model.slice_pos["r_y"]}
     
     def slice_pos_spinBox_z_changed(self):        
         self._model.slice_pos = {   "x": self._model.slice_pos["x"],
                                     "y": self._model.slice_pos["y"],
-                                    "z": self.ui_view.spinBox_z.value() }
+                                    "z": self.ui_view.spinBox_z.value(),
+                                    "r": self._model.slice_pos["r"],
+                                    "r_a": self._model.slice_pos["r_a"],
+                                    "r_x": self._model.slice_pos["r_x"],
+                                    "r_y": self._model.slice_pos["r_y"] }
     
+    def slice_pos_spinBox_r_changed(self):
+        self._model.slice_pos = {   "x": self._model.slice_pos["x"],
+                                    "y": self._model.slice_pos["y"],
+                                    "z": self._model.slice_pos["z"],
+                                    "r": self.ui_view.horizontal_slider_r.value(),
+                                    "r_a": self._model.slice_pos["r_a"],
+                                    "r_x": self._model.slice_pos["r_x"],
+                                    "r_y": self._model.slice_pos["r_y"] }
+     
+    def slice_pos_spinBox_r_changed(self):
+        self._model.slice_pos = {   "x": self._model.slice_pos["x"],
+                                    "y": self._model.slice_pos["y"],
+                                    "z": self._model.slice_pos["z"],
+                                    "r": self._model.slice_pos["r"],
+                                    "r_a": self.ui_view.horizontal_slider_r_a.value(),
+                                    "r_x": self._model.slice_pos["r_x"],
+                                    "r_y": self._model.slice_pos["r_y"] }   
+        
+    def slice_pos_spinBox_r_x_changed(self):
+        self._model.slice_pos = {   "x": self._model.slice_pos["x"],
+                                    "y": self._model.slice_pos["y"],
+                                    "z": self._model.slice_pos["z"],
+                                    "r": self._model.slice_pos["r"],
+                                    "r_a": self._model.slice_pos["r_a"],
+                                    "r_x": self.ui_view.horizontal_slider_r_x.value(),
+                                    "r_y": self._model.slice_pos["r_y"] }
+        
+    def slice_pos_spinBox_r_y_changed(self):
+        self._model.slice_pos = {   "x": self._model.slice_pos["x"],
+                                    "y": self._model.slice_pos["y"],
+                                    "z": self._model.slice_pos["z"],
+                                    "r": self._model.slice_pos["r"],
+                                    "r_a": self._model.slice_pos["r_a"],
+                                    "r_x": self._model.slice_pos["r_x"],
+                                    "r_y": self.ui_view.horizontal_slider_r_y.value() }
+        
+    def slice_pos_spinBox_r_y_changed(self):
+        self._model.slice_pos = {   "x": self._model.slice_pos["x"],
+                                    "y": self._model.slice_pos["y"],
+                                    "z": self._model.slice_pos["z"],
+                                    "r": self._model.slice_pos["r"],
+                                    "r_a": self._model.slice_pos["r_a"],
+                                    "r_x": self._model.slice_pos["r_x"],
+                                    "r_y": self.ui_view.horizontal_slider_r_y.value()}
+    
+    def show_cut_views_changed(self):
+        self._model.show_cut_views = {  "x": self.ui_view.checkBox_show_x.isChecked(),
+                                        "y": self.ui_view.checkBox_show_y.isChecked(),
+                                        "z": self.ui_view.checkBox_show_z.isChecked(),
+                                        "r": self.ui_view.checkBox_show_r.isChecked() }
     
     
     def on_slice_pos_changed(self):
@@ -160,9 +287,23 @@ class MainView(QtWidgets.QMainWindow):
         self.ui_view.horizontal_slider_y.setValue(round(self._model.slice_pos["y"] * 2))
         self.ui_view.horizontal_slider_z.setValue(round(self._model.slice_pos["z"] * 2))
         
+        self.ui_view.horizontal_slider_r.setValue(round(self._model.slice_pos["r"] * 2))
+        self.ui_view.horizontal_slider_r.setValue(round(self._model.slice_pos["r_a"] * 2))
+        self.ui_view.horizontal_slider_r_x.setValue(round(self._model.slice_pos["r_x"] * 2))
+        self.ui_view.horizontal_slider_r_y.setValue(round(self._model.slice_pos["r_y"] * 2))
+        
+        
         self.ui_view.spinBox_x.setValue(self._model.slice_pos["x"])
         self.ui_view.spinBox_y.setValue(self._model.slice_pos["y"])
         self.ui_view.spinBox_z.setValue(self._model.slice_pos["z"])
+        
+        self.ui_view.spinBox_r.setValue(self._model.slice_pos["r"])
+        self.ui_view.spinBox_r_a.setValue(self._model.slice_pos["r_a"])
+        self.ui_view.spinBox_r_x.setValue(self._model.slice_pos["r_x"])
+        self.ui_view.spinBox_r_y.setValue(self._model.slice_pos["r_y"])
+
+        
+        
         
     def on_slice_bounds_changed(self):
         self.ui_view.horizontal_slider_x.setMinimum(round(self._model.slice_bounds["x"]["min"] * 2))
@@ -172,12 +313,27 @@ class MainView(QtWidgets.QMainWindow):
         self.ui_view.horizontal_slider_z.setMinimum(round(self._model.slice_bounds["z"]["min"] * 2))
         self.ui_view.horizontal_slider_z.setMaximum(round(self._model.slice_bounds["z"]["max"] * 2))
         
+        self.ui_view.horizontal_slider_r.setMinimum(round(self._model.slice_bounds["r"]["min"] * 2))
+        self.ui_view.horizontal_slider_r.setMaximum(round(self._model.slice_bounds["r"]["max"] * 2))
+        self.ui_view.horizontal_slider_r_x.setMinimum(round(self._model.slice_bounds["r_x"]["min"] * 2))
+        self.ui_view.horizontal_slider_r_x.setMaximum(round(self._model.slice_bounds["r_x"]["max"] * 2))
+        self.ui_view.horizontal_slider_r_y.setMinimum(round(self._model.slice_bounds["r_y"]["min"] * 2))
+        self.ui_view.horizontal_slider_r_y.setMaximum(round(self._model.slice_bounds["r_y"]["max"] * 2))
+        
+        
         self.ui_view.spinBox_x.setMinimum(self._model.slice_bounds["x"]["min"])
         self.ui_view.spinBox_x.setMaximum(self._model.slice_bounds["x"]["max"])
         self.ui_view.spinBox_y.setMinimum(self._model.slice_bounds["y"]["min"])
         self.ui_view.spinBox_y.setMaximum(self._model.slice_bounds["y"]["max"])
         self.ui_view.spinBox_z.setMinimum(self._model.slice_bounds["z"]["min"])
         self.ui_view.spinBox_z.setMaximum(self._model.slice_bounds["z"]["max"])
+        
+        self.ui_view.spinBox_r.setMinimum(self._model.slice_bounds["r"]["min"])
+        self.ui_view.spinBox_r.setMaximum(self._model.slice_bounds["r"]["max"])
+        self.ui_view.spinBox_r_x.setMinimum(self._model.slice_bounds["r_x"]["min"])
+        self.ui_view.spinBox_r_x.setMaximum(self._model.slice_bounds["r_x"]["max"])
+        self.ui_view.spinBox_r_y.setMinimum(self._model.slice_bounds["r_y"]["min"])
+        self.ui_view.spinBox_r_y.setMaximum(self._model.slice_bounds["r_y"]["max"])
 
     def closeEvent(self, QCloseEvent):
         # it is necessary to finalize the vtk elements when window gets closed
