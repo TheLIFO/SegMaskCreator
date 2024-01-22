@@ -20,6 +20,9 @@ class Model(QObject):
         
         self._knotdata = None    
         self._mesh = None
+        self.mesh_actor = None
+        
+        
         self.mesh_scale = None
         self._threshold = 0        
         self._slice_bounds = { "x": {"min": 0, "max": 0},
@@ -42,8 +45,9 @@ class Model(QObject):
                       
         reader = pyvista.get_reader(filename)
         reader.show_progress()
-        mesh = reader.read() 
-        mesh = mesh.threshold(100)  
+        mesh_orig = reader.read() 
+        
+        mesh = mesh_orig.threshold(0)
         
         self.mesh_scale = (1, 1, 1)
         self.mesh_origin = (0, 0, 0)
@@ -71,6 +75,7 @@ class Model(QObject):
                                 "y": {"min": ymin, "max": ymax},
                                 "z": {"min": zmin, "max": zmax},
                                 "r": {"min": 0, "max": max(round((xmax-xmin)/2), round((ymax-ymin)/2))},
+                                "r_a": {"min": 0, "max": 360},
                                 "r_x": {"min": xmin, "max": xmax},
                                 "r_y": {"min": ymin, "max": ymax} }
         self.slice_pos = {  "x": round(mesh.center[0] * 2) / 2,
