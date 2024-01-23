@@ -4,6 +4,7 @@ from PyQt5.QtCore import Qt, QObject, pyqtSignal
 import pyvista as pv
 from model.knot_data import KnotData 
 import nrrd
+import copy
     
 class Model(QObject):
     # signals when model changes
@@ -12,6 +13,8 @@ class Model(QObject):
     slice_bounds_changed = pyqtSignal(object)
     slice_pos_changed = pyqtSignal(object)
     show_cut_views_changed = pyqtSignal(object)
+    threshold_changed = pyqtSignal(object)
+    
 
     
     # constructor
@@ -24,7 +27,8 @@ class Model(QObject):
         
         
         self.mesh_scale = None
-        self._threshold = 0        
+        self._threshold = 0  
+        self._threshold_active = False      
         self._slice_bounds = { "x": {"min": 0, "max": 0},
                                "y": {"min": 0, "max": 0},
                                "z": {"min": 0, "max": 0},
@@ -39,15 +43,23 @@ class Model(QObject):
                                "z": False,
                                "r": False }
         
-    
+        # self.threshold_changed.connect(self.on_threshold_changed)
+        
+    def on_threshold_changed(self):
+        if (self.threshold_active and self.mesh != None):
+            print ("Threshold changed...")
+            self.mesh.threshold(self.threshold)
+            print ("Threshold changed...ok")
+        
+        
     def load_imagedata(self, filename):
         print ("loading file:", filename)
                       
         reader = pyvista.get_reader(filename)
         reader.show_progress()
-        mesh_orig = reader.read() 
+        self.mesh_orig = reader.read() 
         
-        mesh = mesh_orig.threshold(0)
+        mesh = copy.deepcopy(self.mesh_orig)
         
         self.mesh_scale = (1, 1, 1)
         self.mesh_origin = (0, 0, 0)
@@ -87,6 +99,8 @@ class Model(QObject):
                             "r_a": 0.0}
         
         self.knotdata = KnotData(filename)
+        
+        
         self.mesh = mesh # set new mesh here to trigger also setting new bounds
         
    
@@ -108,10 +122,24 @@ class Model(QObject):
     
     @property
     def threshold(self):
-        return self._threshold
+        return int(self._threshold)
     @threshold.setter
     def threshold(self, threshold):  
-        self._threshold = threshold
+        self._threshold = int(threshold)
+        self.threshold_changed.emit(int(threshold))   
+        # do actual thresholding with mesh
+        self.on_threshold_changed()
+        
+        
+    @property
+    def threshold_active(self):
+        return self._threshold_active
+    @threshold_active.setter
+    def threshold_active(self, threshold_active):  
+        self._threshold_active = threshold_active
+        self.threshold_changed.emit(self.threshold)
+        # do actual thresholding with mesh
+        self.on_threshold_changed()
 
     @property 
     def slice_pos(self):
@@ -140,9 +168,6 @@ class Model(QObject):
         return self._show_cut_views
     @show_cut_views.setter
     def show_cut_views(self, values):
-        self._show_cut_views = values     
-    
-        
-  
-
+        self._show_cut_views = values  
+        self.show_cut_views_changed.emit(values)
     

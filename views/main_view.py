@@ -39,7 +39,7 @@ class MainView(QtWidgets.QMainWindow):
         self.create_views()
         self.show()
         
-        #listen if slice_pos changed
+        # listen if slice_pos changed
         self._model.slice_pos_changed.connect(self.on_slice_pos_changed)
         
     
@@ -123,8 +123,8 @@ class MainView(QtWidgets.QMainWindow):
         self.ui_view.checkBox_show_z.stateChanged.connect(self.show_cut_views_changed)
         self.ui_view.checkBox_show_r.stateChanged.connect(self.show_cut_views_changed)
         
-        # listen to changing mesh to change bounds of slider 
-        self._model.mesh_changed.connect(self.on_slice_bounds_changed)
+        # listen to changing mesh to change bounds of slider         
+        self._model.slice_bounds_changed.connect(self.on_slice_bounds_changed)
 
         
         # add and show view Frame
@@ -275,6 +275,7 @@ class MainView(QtWidgets.QMainWindow):
                                         "y": self.ui_view.checkBox_show_y.isChecked(),
                                         "z": self.ui_view.checkBox_show_z.isChecked(),
                                         "r": self.ui_view.checkBox_show_r.isChecked() }
+        
     
     
     def on_slice_pos_changed(self, slice_pos):
@@ -300,39 +301,39 @@ class MainView(QtWidgets.QMainWindow):
         
         
         
-    def on_slice_bounds_changed(self):
-        self.ui_view.horizontal_slider_x.setMinimum(round(self._model.slice_bounds["x"]["min"] * 2))
-        self.ui_view.horizontal_slider_x.setMaximum(round(self._model.slice_bounds["x"]["max"] * 2))
-        self.ui_view.horizontal_slider_y.setMinimum(round(self._model.slice_bounds["y"]["min"] * 2))
-        self.ui_view.horizontal_slider_y.setMaximum(round(self._model.slice_bounds["y"]["max"] * 2))
-        self.ui_view.horizontal_slider_z.setMinimum(round(self._model.slice_bounds["z"]["min"] * 2))
-        self.ui_view.horizontal_slider_z.setMaximum(round(self._model.slice_bounds["z"]["max"] * 2))
+    def on_slice_bounds_changed(self, slice_bounds):
+        self.ui_view.horizontal_slider_x.setMinimum(round(slice_bounds["x"]["min"] * 2))
+        self.ui_view.horizontal_slider_x.setMaximum(round(slice_bounds["x"]["max"] * 2))
+        self.ui_view.horizontal_slider_y.setMinimum(round(slice_bounds["y"]["min"] * 2))
+        self.ui_view.horizontal_slider_y.setMaximum(round(slice_bounds["y"]["max"] * 2))
+        self.ui_view.horizontal_slider_z.setMinimum(round(slice_bounds["z"]["min"] * 2))
+        self.ui_view.horizontal_slider_z.setMaximum(round(slice_bounds["z"]["max"] * 2))
         
-        self.ui_view.horizontal_slider_r.setMinimum(round(self._model.slice_bounds["r"]["min"] * 2))
-        self.ui_view.horizontal_slider_r.setMaximum(round(self._model.slice_bounds["r"]["max"] * 2))
-        self.ui_view.horizontal_slider_r_a.setMinimum(round(self._model.slice_bounds["r_a"]["min"]))
-        self.ui_view.horizontal_slider_r_a.setMaximum(round(self._model.slice_bounds["r_a"]["max"]))        
-        self.ui_view.horizontal_slider_r_x.setMinimum(round(self._model.slice_bounds["r_x"]["min"] * 2))
-        self.ui_view.horizontal_slider_r_x.setMaximum(round(self._model.slice_bounds["r_x"]["max"] * 2))
-        self.ui_view.horizontal_slider_r_y.setMinimum(round(self._model.slice_bounds["r_y"]["min"] * 2))
-        self.ui_view.horizontal_slider_r_y.setMaximum(round(self._model.slice_bounds["r_y"]["max"] * 2))
+        self.ui_view.horizontal_slider_r.setMinimum(round(slice_bounds["r"]["min"] * 2))
+        self.ui_view.horizontal_slider_r.setMaximum(round(slice_bounds["r"]["max"] * 2))
+        self.ui_view.horizontal_slider_r_a.setMinimum(round(slice_bounds["r_a"]["min"]))
+        self.ui_view.horizontal_slider_r_a.setMaximum(round(slice_bounds["r_a"]["max"]))        
+        self.ui_view.horizontal_slider_r_x.setMinimum(round(slice_bounds["r_x"]["min"] * 2))
+        self.ui_view.horizontal_slider_r_x.setMaximum(round(slice_bounds["r_x"]["max"] * 2))
+        self.ui_view.horizontal_slider_r_y.setMinimum(round(slice_bounds["r_y"]["min"] * 2))
+        self.ui_view.horizontal_slider_r_y.setMaximum(round(slice_bounds["r_y"]["max"] * 2))
         
         
-        self.ui_view.spinBox_x.setMinimum(self._model.slice_bounds["x"]["min"])
-        self.ui_view.spinBox_x.setMaximum(self._model.slice_bounds["x"]["max"])
-        self.ui_view.spinBox_y.setMinimum(self._model.slice_bounds["y"]["min"])
-        self.ui_view.spinBox_y.setMaximum(self._model.slice_bounds["y"]["max"])
-        self.ui_view.spinBox_z.setMinimum(self._model.slice_bounds["z"]["min"])
-        self.ui_view.spinBox_z.setMaximum(self._model.slice_bounds["z"]["max"])
+        self.ui_view.spinBox_x.setMinimum(slice_bounds["x"]["min"])
+        self.ui_view.spinBox_x.setMaximum(slice_bounds["x"]["max"])
+        self.ui_view.spinBox_y.setMinimum(slice_bounds["y"]["min"])
+        self.ui_view.spinBox_y.setMaximum(slice_bounds["y"]["max"])
+        self.ui_view.spinBox_z.setMinimum(slice_bounds["z"]["min"])
+        self.ui_view.spinBox_z.setMaximum(slice_bounds["z"]["max"])
         
-        self.ui_view.spinBox_r.setMinimum(self._model.slice_bounds["r"]["min"])
-        self.ui_view.spinBox_r.setMaximum(self._model.slice_bounds["r"]["max"])
-        self.ui_view.spinBox_r_a.setMinimum(self._model.slice_bounds["r_a"]["min"])
-        self.ui_view.spinBox_r_a.setMaximum(self._model.slice_bounds["r_a"]["max"])
-        self.ui_view.spinBox_r_x.setMinimum(self._model.slice_bounds["r_x"]["min"])
-        self.ui_view.spinBox_r_x.setMaximum(self._model.slice_bounds["r_x"]["max"])
-        self.ui_view.spinBox_r_y.setMinimum(self._model.slice_bounds["r_y"]["min"])
-        self.ui_view.spinBox_r_y.setMaximum(self._model.slice_bounds["r_y"]["max"])
+        self.ui_view.spinBox_r.setMinimum(slice_bounds["r"]["min"])
+        self.ui_view.spinBox_r.setMaximum(slice_bounds["r"]["max"])
+        self.ui_view.spinBox_r_a.setMinimum(slice_bounds["r_a"]["min"])
+        self.ui_view.spinBox_r_a.setMaximum(slice_bounds["r_a"]["max"])
+        self.ui_view.spinBox_r_x.setMinimum(slice_bounds["r_x"]["min"])
+        self.ui_view.spinBox_r_x.setMaximum(slice_bounds["r_x"]["max"])
+        self.ui_view.spinBox_r_y.setMinimum(slice_bounds["r_y"]["min"])
+        self.ui_view.spinBox_r_y.setMaximum(slice_bounds["r_y"]["max"])
 
     def closeEvent(self, QCloseEvent):
         # it is necessary to finalize the vtk elements when window gets closed

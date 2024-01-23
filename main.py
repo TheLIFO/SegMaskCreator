@@ -27,3 +27,4 @@ if __name__ == '__main__':
     app.main_view.show()
     app.exec()
     sys.exit()
+    

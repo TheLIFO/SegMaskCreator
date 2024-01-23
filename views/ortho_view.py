@@ -60,7 +60,8 @@ class OrthoView(QtWidgets.QWidget):
         # listen to model event signals     
         self._model.mesh_changed.connect(self.on_mesh_changed)
         self._model.slice_pos_changed.connect(self.on_slice_pos_changed)
-        self._model.mesh_changed.connect(self.on_slice_bounds_changed)
+        self._model.slice_bounds_changed.connect(self.on_slice_bounds_changed)
+        self._model.show_cut_views_changed.connect(self.on_show_cut_views_changed)
 
         self.cutter_YZ = vtk.vtkCutter()
         self.plane_YZ = vtk.vtkPlane()
@@ -83,6 +84,9 @@ class OrthoView(QtWidgets.QWidget):
         self.clip_plane_widget_Y = self.plotter3D.add_plane_widget(assign_to_axis = 'y', test_callback = False, callback = self.on_clip_plane_Y_changed, interaction_event="always",)
         self.clip_plane_widget_Z = self.plotter3D.add_plane_widget(assign_to_axis = 'z', test_callback = False, callback = self.on_clip_plane_Z_changed, interaction_event="always",)
         self.clip_plane_widget_R = self.plotter3D.add_plane_widget(assign_to_axis = 'z', test_callback = False, callback = self.on_clip_plane_R_changed, interaction_event="always",)
+        
+        #update visibility of widgets
+        self.on_show_cut_views_changed(self._model.show_cut_views)
         
     def on_clip_plane_X_changed(self, normal, origin):
         new_origin = [round(a*2)/2 for a in list(origin)]                
@@ -152,17 +156,31 @@ class OrthoView(QtWidgets.QWidget):
         self.update_plots()
     
     
-    def on_slice_bounds_changed(self):
-        bounds = self._model.slice_bounds
-        self.clip_plane_widget_X.PlaceWidget(bounds["x"]["min"], bounds["x"]["max"], bounds["y"]["min"], bounds["y"]["max"], bounds["z"]["min"], bounds["z"]["max"])
-        self.clip_plane_widget_Y.PlaceWidget(bounds["x"]["min"], bounds["x"]["max"], bounds["y"]["min"], bounds["y"]["max"], bounds["z"]["min"], bounds["z"]["max"])
-        self.clip_plane_widget_Z.PlaceWidget(bounds["x"]["min"], bounds["x"]["max"], bounds["y"]["min"], bounds["y"]["max"], bounds["z"]["min"], bounds["z"]["max"])
+    def on_slice_bounds_changed(self, slice_bounds):
+
+        self.clip_plane_widget_X.PlaceWidget(slice_bounds["x"]["min"], slice_bounds["x"]["max"], slice_bounds["y"]["min"], slice_bounds["y"]["max"], slice_bounds["z"]["min"], slice_bounds["z"]["max"])
+        self.clip_plane_widget_Y.PlaceWidget(slice_bounds["x"]["min"], slice_bounds["x"]["max"], slice_bounds["y"]["min"], slice_bounds["y"]["max"], slice_bounds["z"]["min"], slice_bounds["z"]["max"])
+        self.clip_plane_widget_Z.PlaceWidget(slice_bounds["x"]["min"], slice_bounds["x"]["max"], slice_bounds["y"]["min"], slice_bounds["y"]["max"], slice_bounds["z"]["min"], slice_bounds["z"]["max"])
     
         # TODO
-        self.clip_plane_widget_R.PlaceWidget(bounds["x"]["min"], bounds["x"]["max"], bounds["y"]["min"], bounds["y"]["max"], bounds["z"]["min"], bounds["z"]["max"])
+        self.clip_plane_widget_R.PlaceWidget(slice_bounds["x"]["min"], slice_bounds["x"]["max"], slice_bounds["y"]["min"], slice_bounds["y"]["max"], slice_bounds["z"]["min"], slice_bounds["z"]["max"])
     
     
+    def on_show_cut_views_changed(self, show_cut_views):
+        self.plotter_ortho_view_xy.setVisible(show_cut_views["z"])
+        self.plotter_ortho_view_yz.setVisible(show_cut_views["x"])
+        self.plotter_ortho_view_xz.setVisible(show_cut_views["y"])
+        
+        self.plotter_ortho_view_r.setVisible(show_cut_views["r"])
+        self.plotter_ortho_view_rc.setVisible(show_cut_views["r"])
+        if not self._model.mesh == None:
+            self.update_plots()
+        
+        
     def update_plots(self):
+        
+        # TODO update_plots only updates cutters that have changed -> own dict with setter method emitting resp. signal with new pos_slice value
+        # "to be implemented"-planes in other views need still be updated, or are done automatically
         
         print("update plot 3D ortho...(1)")
         
