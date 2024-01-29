@@ -14,6 +14,7 @@ class Model(QObject):
     slice_pos_changed = pyqtSignal(object)
     show_cut_views_changed = pyqtSignal(object)
     threshold_changed = pyqtSignal(object)
+    threshold_bounds_changed = pyqtSignal(object)
     
 
     
@@ -47,7 +48,7 @@ class Model(QObject):
         
     def on_threshold_changed(self):
         if (self.threshold_active and self.mesh != None):
-            print ("Threshold changed...")
+            print ("Threshold changed to ", self.threshold, " ...")
             self.mesh.threshold(self.threshold)
             print ("Threshold changed...ok")
         
@@ -60,6 +61,8 @@ class Model(QObject):
         self.mesh_orig = reader.read() 
         
         mesh = copy.deepcopy(self.mesh_orig)
+        mesh = mesh.threshold(100)
+        self.threshold = 100
         
         self.mesh_scale = (1, 1, 1)
         self.mesh_origin = (0, 0, 0)
@@ -98,8 +101,8 @@ class Model(QObject):
                             "r_y": round(mesh.center[1] * 2) / 2,
                             "r_a": 0.0}
         
+        self.threshold_bounds = { "min": 0, "max": 3000}
         self.knotdata = KnotData(filename)
-        
         
         self.mesh = mesh # set new mesh here to trigger also setting new bounds
         
@@ -126,10 +129,9 @@ class Model(QObject):
     @threshold.setter
     def threshold(self, threshold):  
         self._threshold = int(threshold)
+        self.on_threshold_changed()        
         self.threshold_changed.emit(int(threshold))   
         # do actual thresholding with mesh
-        self.on_threshold_changed()
-        
         
     @property
     def threshold_active(self):
@@ -137,9 +139,19 @@ class Model(QObject):
     @threshold_active.setter
     def threshold_active(self, threshold_active):  
         self._threshold_active = threshold_active
+        self.on_threshold_changed()
         self.threshold_changed.emit(self.threshold)
         # do actual thresholding with mesh
-        self.on_threshold_changed()
+        
+    @property
+    def threshold_bounds(self):
+        return self._threshold_bounds
+    @threshold_bounds.setter
+    def threshold_bounds(self, threshold_bounds):  
+        self._threshold_bounds = threshold_bounds
+        self.threshold_bounds_changed.emit(threshold_bounds)        
+        
+        
 
     @property 
     def slice_pos(self):

@@ -107,14 +107,14 @@ class MainView(QtWidgets.QMainWindow):
         
         
         # connect changing spinbox to slice_pos
-        self.ui_view.spinBox_x.valueChanged.connect  (self.slice_pos_spinBox_x_changed)
-        self.ui_view.spinBox_y.valueChanged.connect  (self.slice_pos_spinBox_y_changed)
-        self.ui_view.spinBox_z.valueChanged.connect  (self.slice_pos_spinBox_z_changed)
+        self.ui_view.spinBox_x.textChanged.connect  (self.slice_pos_spinBox_x_changed)
+        self.ui_view.spinBox_y.textChanged.connect  (self.slice_pos_spinBox_y_changed)
+        self.ui_view.spinBox_z.textChanged.connect  (self.slice_pos_spinBox_z_changed)
         
-        self.ui_view.spinBox_r.valueChanged.connect  (self.slice_pos_spinBox_r_changed)
-        self.ui_view.spinBox_r_a.valueChanged.connect(self.slice_pos_spinBox_r_a_changed)
-        self.ui_view.spinBox_r_x.valueChanged.connect(self.slice_pos_spinBox_r_x_changed)
-        self.ui_view.spinBox_r_y.valueChanged.connect(self.slice_pos_spinBox_r_y_changed)
+        self.ui_view.spinBox_r.textChanged.connect  (self.slice_pos_spinBox_r_changed)
+        self.ui_view.spinBox_r_a.textChanged.connect(self.slice_pos_spinBox_r_a_changed)
+        self.ui_view.spinBox_r_x.textChanged.connect(self.slice_pos_spinBox_r_x_changed)
+        self.ui_view.spinBox_r_y.textChanged.connect(self.slice_pos_spinBox_r_y_changed)
         
         # conncect checkboxes for cut_views to show_cut_views_changed
         
