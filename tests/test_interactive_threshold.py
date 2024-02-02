@@ -11,7 +11,7 @@ import numpy as np
 import pyvista as pv
 from pyvistaqt import QtInteractor, MainWindow
 import vtk
-from vtk.qt.QVTKRenderWindowInteractor import QVTKRenderWindowInteractor
+
 
 class MyMainWindow(MainWindow):
 
@@ -39,8 +39,8 @@ class MyMainWindow(MainWindow):
         self.plotter_cut_view.enable_surface_point_picking(callback = self.cell_picked, show_message = False, picker = 'cell')
         grid_layout.addWidget(self.plotter_cut_view, 0, 1)
         
-        widget = QVTKRenderWindowInteractor(self.frame)
-        self.plotter_2 = 
+        # widget = QVTKRenderWindowInteractor(self.frame)
+        self.plotter_2 = QtInteractor(self.frame)
         self.plotter_2.enable_image_style()
         self.plotter_2.enable_surface_point_picking(callback = self.cell_picked, show_message = False, picker = 'cell')
         grid_layout.addWidget(self.plotter_2, 0, 2)
@@ -56,8 +56,8 @@ class MyMainWindow(MainWindow):
         
         self.clip_plane_widget = vtk.vtkImagePlaneWidget()
         self.clip_plane_widget.SetInteractor(self.plotter)
-        # self.clip_plane_widget.SetInputData(self.dataset)
-        self.clip_plane_widget.SetInputConnection(self.dataset.GetOutput())
+        self.clip_plane_widget.SetInputData(self.dataset)
+        # self.clip_plane_widget.SetInputConnection(self.dataset.get_output_port())
         self.clip_plane_widget.SetPlaneOrientationToZAxes()
         self.clip_plane_widget.SetSliceIndex(32)
         self.clip_plane_widget.SetPicker(self.picker)
@@ -66,7 +66,7 @@ class MyMainWindow(MainWindow):
         # self.clip_plane_widget.SetCallback , test_callback = False, callback = self.on_clip_plane_changed, interaction_event="always",)
         # slicer = self.clip_plane_widget.GetReslice()
         self.slice = self.clip_plane_widget.GetResliceOutput()
-        self.plotter_2.add_mesh(self.slice)
+        self.plotter_2.add_mesh(self.slice, name = "slice")
         
         self.signal_close.connect(self.plotter.close)
         
@@ -157,9 +157,11 @@ class MyMainWindow(MainWindow):
         # self.plane.SetOrigin(origin)
         # self.cutter.Update()
         # self.plotter_cut_view.update()
+        self.slice = self.clip_plane_widget.GetResliceOutput()
+        self.plotter_2.add_mesh(self.slice, name = "slice")
         self.plotter.update()
         self.clip_plane_widget.UpdatePlacement()
-        
+        # self.clip_plane_widget.update()
         self.slice.Modified()
         self.plotter_2.Render()
         self.plotter_2.ProcessEvents()

@@ -1,195 +1,317 @@
 
-import sys
+import vtk
+from vtkmodules.vtkFiltersCore import vtkCutter
+from vtkmodules.vtkCommonDataModel import vtkSphere
 
-from PyQt5 import QtCore, QtGui, QtWidgets
-from PyQt5.QtCore import Qt
+from vtkmodules.vtkImagingCore import vtkImageReslice
+
+center = []
+ # Create callbacks for slicing the image
+actions = {}
+actions["Slicing"] = 0
+interactor = None
+interactorStyle = None
+window = None
+center = None
+reslicer = None
+    
+def main():
+    # Start by loading some data.
+    reader = vtk.vtkNrrdReader()
+    filename = "data\Drydisk07.6.nrrd"
+    reader.SetFileName(filename)
+    
+
+    # Calculate the center of the volume
+    reader.Update()
+    (xMin, xMax, yMin, yMax, zMin, zMax) = reader.GetExecutive().GetWholeExtent(reader.GetOutputInformation(0))
+    (xSpacing, ySpacing, zSpacing) = reader.GetOutput().GetSpacing()
+    (x0, y0, z0) = reader.GetOutput().GetOrigin()
+
+    global center
+    center = [x0 + xSpacing * 0.5 * (xMin + xMax),
+            y0 + ySpacing * 0.5 * (yMin + yMax),
+            z0 + zSpacing * 0.5 * (zMin + zMax)]
+    global reslicer
+    reslicer, actor, mapToColors = extract_slice(reader)
+
+    # reslicer, actor, sphere = extract_sphere(reader)
+
+    # Display the image
 
 
-class LoadModelWidget(QtWidgets.QWidget):
-    def __init__(self, *args, **kwargs):
-        super(LoadModelWidget, self).__init__(*args, **kwargs)
+    renderer = vtk.vtkRenderer()
+    renderer.AddActor(actor)
+    renderer.SetBackground(1,1,1)
+    global window
+    window = vtk.vtkRenderWindow()
+    window.AddRenderer(renderer)
 
-        # ------------------------ GUI Components ------------------------ #
-        # self.setFixedHeight(100)
-        self._container = QtWidgets.QGroupBox(self)
-        self._container.setSizePolicy(QtWidgets.QSizePolicy(QtWidgets.QSizePolicy.Expanding, QtWidgets.QSizePolicy.Expanding))
-        # self._container.setFixedHeight(100)
-        # self._container.setFixedWidth(210)
-        layout = QtWidgets.QGridLayout()
+    # Set up the interaction
+    global interactorStyle
+    interactorStyle = vtk.vtkInteractorStyleImage()
+    global interactor
+    interactor = vtk.vtkRenderWindowInteractor()
+    interactor.SetInteractorStyle(interactorStyle)
+    window.SetInteractor(interactor)
+    window.Render()
 
-        self._model_to_select_label = QtWidgets.QLabel("Selected model")
-        layout.addWidget(self._model_to_select_label, 0, 0)
-        self._model_to_select_list = QtWidgets.QComboBox()
-        layout.addWidget(self._model_to_select_list, 0, 1)
-        _slice_method_label = QtWidgets.QLabel("Slice method")
-        layout.addWidget(_slice_method_label, 1, 0)
-        self._list_of_slicing_method = QtWidgets.QComboBox()
-        layout.addWidget(self._list_of_slicing_method, 1, 1)
+    interactorStyle.AddObserver("MouseMoveEvent", MouseMoveCallback)
+    interactorStyle.AddObserver("LeftButtonPressEvent", ButtonCallback)
+    interactorStyle.AddObserver("LeftButtonReleaseEvent", ButtonCallback)
 
-        self._bottom_radius_label = QtWidgets.QLabel("Bottom radius")
-        layout.addWidget(self._bottom_radius_label, 2, 0)
-        self._bottom_radius_edit = QtWidgets.QLineEdit()
-        layout.addWidget(self._bottom_radius_edit, 2, 1)
-        self._top_radius_label = QtWidgets.QLabel("Top radius")
-        layout.addWidget(self._top_radius_label, 3, 0)
-        self._top_radius_edit = QtWidgets.QLineEdit()
-        layout.addWidget(self._top_radius_edit, 3, 1)
-        self._height_label = QtWidgets.QLabel("Height")
-        layout.addWidget(self._height_label, 4, 0)
-        self._height_edit = QtWidgets.QLineEdit()
-        layout.addWidget(self._height_edit, 4, 1)
+    interactorStyle.AddObserver("RightButtonPressEvent", ButtonCallback)
 
-        self._x_dir_label = QtWidgets.QLabel("X direction")
-        layout.addWidget(self._x_dir_label, 5, 0)
-        self._x_dir_edit = QtWidgets.QLineEdit()
-        layout.addWidget(self._x_dir_edit, 5, 1)
-        self._y_dir_label = QtWidgets.QLabel("Y direction")
-        layout.addWidget(self._y_dir_label, 6, 0)
-        self._y_dir_edit = QtWidgets.QLineEdit()
-        layout.addWidget(self._y_dir_edit, 6, 1)
-        self._z_dir_label = QtWidgets.QLabel("Z direction")
-        layout.addWidget(self._z_dir_label, 7, 0)
-        self._z_dir_edit = QtWidgets.QLineEdit()
-        layout.addWidget(self._z_dir_edit, 7, 1)
 
-        self._remove_btn = QtWidgets.QPushButton("Remove model")
-        layout.addWidget(self._remove_btn, 8, 0)
+    # Start interaction
+    interactor.Start()
+    del renderer
+    del window
+    del interactor
+    
+def get_table():
+        # Create a greyscale lookup table
+    table = vtk.vtkLookupTable()
+    table.SetRange(0, 2000) # image intensity range
+    table.SetValueRange(0.0, 1.0) # from black to white
+    table.SetSaturationRange(0.0, 1.0) # no color saturation
+    table.SetRampToLinear()
+    table.Build()
+    return table
 
-        self._bottom_radius_label.setVisible(False)
-        self._bottom_radius_edit.setVisible(False)
-        self._top_radius_label.setVisible(False)
-        self._top_radius_edit.setVisible(False)
-        self._height_label.setVisible(False)
-        self._height_edit.setVisible(False)
-        self._x_dir_label.setVisible(False)
-        self._x_dir_edit.setVisible(False)
-        self._y_dir_label.setVisible(False)
-        self._y_dir_edit.setVisible(False)
-        self._z_dir_label.setVisible(False)
-        self._z_dir_edit.setVisible(False)
+def get_table_viridis():
+    # Create a vtkColorTransferFunction
+    color_tf = vtk.vtkColorTransferFunction()
+    color_tf.AddRGBPoint(0.0, 0.267004, 0.004874, 0.329415)  # Dark blue
+    color_tf.AddRGBPoint(0.25, 0.253935, 0.265254, 0.529983)  # Purple
+    color_tf.AddRGBPoint(0.5, 0.163625, 0.471133, 0.558148)  # Teal
+    color_tf.AddRGBPoint(0.75, 0.993248, 0.906157, 0.143936)  # Yellow
+    color_tf.AddRGBPoint(1.0, 0.993248, 0.906157, 0.143936)  # Yellow
 
-        self._container.setLayout(layout)
+    # Create a vtkLookupTable from the vtkColorTransferFunction
+    lut = vtk.vtkLookupTable()
+    lut.SetNumberOfTableValues(256)  # Set the number of colors
+    lut.Build()
 
-        # -------------------- Other attributes -------------------- "
-        self._filename = ""
+    for i in range(256):
+        val = i / 255.0
+        color = color_tf.GetColor(val)
+        lut.SetTableValue(i, color[0], color[1], color[2], 1.0)  # Set the RGBA values for each color
 
-        # -------------------- Assign slot and signal -------------------- "
-        self._list_of_slicing_method.currentIndexChanged.connect(self.slice_method_changed)
-        self._remove_btn.clicked.connect(self.remove_model)
+    # Set the range of scalar values
+    lut.SetTableRange(0, 2000)  # Assuming your scalar values range from 0 to 1
+    return lut
+
+def get_table_coloured():
+    # Create a vtkLookupTable
+    lut = vtk.vtkLookupTable()
+    lut.SetNumberOfColors(256)  # Set the number of colors
+
+    # Set the range of scalar values
+    lut.SetTableRange(0, 2000)
+
+    # Set the color interpolation
+    lut.SetHueRange(0.66667, 0.0)
+    lut.SetSaturationRange(1.0, 1.0)
+    lut.SetValueRange(1.0, 1.0)
+
+    # Set the scale to linear
+    lut.SetScaleToLinear()
+
+    # Build the lookup table
+    lut.Build()
+    return lut
+    
+def extract_slice(reader):
+
+    # Extract a slice in the desired orientation
+    reslice = vtk.vtkImageReslice()
+    reslice.SetInputConnection(reader.GetOutputPort())
+    reslice.SetOutputDimensionality(2)
+    sagittal = vtk.vtkMatrix4x4()
+    sagittal.DeepCopy((0, 0,-1, center[0],
+                    1, 0, 0, center[1],
+                    0,-1, 0, center[2],
+                    0, 0, 0, 1))
+    reslice.SetResliceAxes(sagittal)
+    reslice.SetInterpolationModeToLinear()
+    
+
+    # Update the vtkImageReslice
+    reslice.Update()
+
+    # Create an instance of vtkImageMapToColors
+    mapToColors = vtk.vtkImageMapToColors()
+    mapToColors.SetInputConnection(reslice.GetOutputPort())  # Set the input as the extracted slice from vtkImageReslice
+    # table = get_table()
+    # table = get_table_coloured()
+    table=get_table_viridis()
+    mapToColors.SetLookupTable(table)
+
+    # Update the vtkImageMapToColors
+    mapToColors.Update()
+
+    actor = vtk.vtkImageActor()
+    actor.GetMapper().SetInputConnection(mapToColors.GetOutputPort())
+    
+    return reslice, actor, mapToColors
+
+def extract_sphere(reader):
+
+    """
+    # Create an instance of vtkCutter
+    cutter = vtkCutter()
+
+    # Set the input data to the cutter
+    cutter.SetInputConnection(reader.GetOutputPort())
+
+    # Set the cut function using vtkSphere as an example
+    sphere = vtkSphere()
+    sphere.SetCenter(center[0], center[1], center[2])  # Set the center of the sphere
+    sphere.SetRadius(50)  # Set the radius of the sphere
+    
+    cutter.SetCutFunction(sphere)
+
+    # Update the cutter to generate the output
+    cutter.Update()
+
+    
+    # here is the magic:
+    # Create an instance of vtkPolyDataToImageStencil
+    polyDataToImageStencil = vtk.vtkPolyDataToImageStencil()
+    polyDataToImageStencil.SetInputConnection(cutter.GetOutputPort())
+    polyDataToImageStencil.Update()
+
+    # Create an instance of vtkImageStencil
+    imageStencil = vtk.vtkImageStencil()
+    imageStencil.SetInputConnection(reader.GetOutputPort())
+    imageStencil.SetStencilConnection(polyDataToImageStencil.GetOutputPort())
+    imageStencil.ReverseStencilOn()  # This may be necessary depending on your specific use case
+    imageStencil.Update()
+
+    # Now you can use the result of the imageStencil as input for vtkImageMapToColors
+    mapToColors.SetInputData(imageStencil.GetOutput())  # Set the input as the extracted slice from vtkImageReslice
+    """
+
+    # create surface
+    surface = vtk.vtkCylinderSource()
+    surface.SetCenter(reader.GetOutput().GetCenter()[0], reader.GetOutput().GetCenter()[1], reader.GetOutput().GetCenter()[2])
+    surface.SetRadius(50.0)
+    surface.SetHeight(200.0)
+    surface.SetResolution(1000)
         
-        layout = QtWidgets.QVBoxLayout(self)
-        layout.addWidget(self._container)
+    
+    
+    # Create points for the plane
+    points = vtk.vtkPoints()
+    points.InsertNextPoint(0, 0, 100)  # Define the first point
+    points.InsertNextPoint(200, 0, 100)  # Define the second point
+    points.InsertNextPoint(200, 200, 100)  # Define the third point
+    points.InsertNextPoint(0, 200, 100)  # Define the fourth point
 
-    def set_model_dir(self, filename, filedir, suggested_slicing_method="Parallel"):
-        # Assign only the name of the file, not the whole stl model
-        self._filename = filename
-        self._filedir = filedir
+    # Create a grid to represent the plane
+    plane = vtk.vtkPolyData()
+    plane.SetPoints(points)
+    plane.Allocate(1, 1)
+    idlist = vtk.vtkIdList()
+    idlist.SetArray([0, 1, 2, 3], 4)
+    plane.InsertNextCell(vtk.VTK_QUAD, idlist)  # Define the quad cell using the point IDs
 
-        self._list_of_slicing_method.addItem("Parallel")
-        self._list_of_slicing_method.addItem("Revolution")
-        self._list_of_slicing_method.addItem("Radial")
-        self._list_of_slicing_method.addItem("ParallelCurve")
+    # Create a data source from the polydata
+    planeDataSource = vtk.vtkPolyDataAlgorithm()
+    planeDataSource.SetOutput(plane)
 
-        self._list_of_slicing_method.setCurrentText(suggested_slicing_method)
+    sample_volume = vtk.vtkProbeFilter()
+    sample_volume.SetSourceConnection(reader.GetOutputPort())
+    sample_volume.SetInputData(planeDataSource.GetOutput())
+    
+    
+    mapper = vtk.vtkImageMapper()
+    # mapper.SetInputConnection(sample_volume.GetOutputPort())
+    
+    mapper.SetInputConnection(reader.GetOutputPort())
+    actor = vtk.vtkImageActor()
+    # actor.GetProperty().SetColorWindow(colors.GetColor3d("Cornsilk").GetData())
+    # actor.SetMapper(mapper)
+    # actor.GetMapper().SetInputConnection(mapToColors.GetOutputPort())  
 
-    def get_model_full_dir(self):
-        return self._filedir + "\\" + self._filename
+    return sample_volume, actor, plane
 
-    def remove_model(self):
-        self._filename = ""
-        self._filedir = ""
-        self._list_of_slicing_method.clear()
 
-    def slice_method_changed(self):
-        is_parallel = self._list_of_slicing_method.currentText() == "Parallel"
-        is_radial = self._list_of_slicing_method.currentText() == "Radial"
 
-        self._bottom_radius_label.setVisible(is_radial)
-        self._bottom_radius_edit.setVisible(is_radial)
-        self._top_radius_label.setVisible(is_radial)
-        self._top_radius_edit.setVisible(is_radial)
-        self._height_label.setVisible(is_radial)
-        self._height_edit.setVisible(is_radial)
-
-        self._x_dir_label.setVisible(is_parallel)
-        self._x_dir_edit.setVisible(is_parallel)
-        self._y_dir_label.setVisible(is_parallel)
-        self._y_dir_edit.setVisible(is_parallel)
-        self._z_dir_label.setVisible(is_parallel)
-        self._z_dir_edit.setVisible(is_parallel)
-
-        padding = 50
-        minimum_height = 100
-        new_height = (self._bottom_radius_label.height() + padding)*is_radial + (self._top_radius_edit.height() + padding)*is_radial + (self._height_label.height() + padding)*is_radial + (self._x_dir_label.height() + padding)*is_parallel + (self._y_dir_label.height() + padding)*is_parallel + (self._z_dir_label.height() + padding)*is_parallel
-        # if (new_height > minimum_height):
-            # self._container.setFixedHeight(new_height)
-            # self.setFixedHeight(new_height)
-        # else:
-            # self._container.setFixedHeight(minimum_height)
-            # self.setFixedHeight(minimum_height)
-
-class LoadModelColumn(QtWidgets.QWidget):
-    def __init__(self, *args, **kwargs):
-        super(LoadModelColumn, self).__init__(*args, **kwargs)
-
-        # ------------------------ GUI Components ------------------------ #
-        self._layout = QtWidgets.QGridLayout()
-        self._add_model_btn = QtWidgets.QPushButton("Add model(s)")
-        self._layout.addWidget(self._add_model_btn, 0, 0)
-        self._clear_all_btn = QtWidgets.QPushButton("Clear all")
-        self._layout.addWidget(self._clear_all_btn, 0, 1)
-
-        self._all_load_model_widgets = []
-
-        self.verticalSpacer = QtWidgets.QSpacerItem(20, 40, QtWidgets.QSizePolicy.Minimum, QtWidgets.QSizePolicy.MinimumExpanding)
-        self._layout.addItem(self.verticalSpacer)
-
-        self._load_model_group = QtWidgets.QGroupBox()
-        self._load_model_group.setLayout(self._layout)
-
-        self._scroll_area = QtWidgets.QScrollArea(self)
-        self._scroll_area.setWidgetResizable(True)
-        # self._scroll_area.setFixedHeight(600)
-        # self._scroll_area.setFixedWidth(250)
-        self._scroll_area.setVerticalScrollBarPolicy(Qt.ScrollBarAlwaysOn)
-        self._scroll_area.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
-        self._scroll_area.setWidget(self._load_model_group)
-
-        # -------------------- Assign slot and signal -------------------- "
-        self._clear_all_btn.clicked.connect(self._clear_all_models)
-        self._add_model_btn.clicked.connect(self._add_models)
+def ButtonCallback(obj, event):
+    global window
+    if event == "LeftButtonPressEvent":
+        actions["Slicing"] = 1
+    else:
+        actions["Slicing"] = 0
+    
+    
+    if event == "RightButtonPressEvent":
+        # mapToColors.SetLookupTable(get_table())
         
-        layout = QtWidgets.QVBoxLayout(self)
-        layout.addWidget(self._scroll_area)
+        window.Render()
+        pass
 
-    def _clear_all_models(self):
-        for widget in self._all_load_model_widgets:
-            self._layout.removeWidget(widget)
-            widget.deleteLater()
-
-        self._all_load_model_widgets = []
-
-    def _add_models(self):
-        widget = LoadModelWidget()
-        widget.set_model_dir("hi", "hello")
-        self._all_load_model_widgets.append(widget)
-        self._layout.addWidget(widget, len(self._all_load_model_widgets), 0, 1, 0)
+def MouseMoveCallback(obj, event):
+    global interactor
+    global interactorStyle
+    global reslicer
+    (lastX, lastY) = interactor.GetLastEventPosition()
+    (mouseX, mouseY) = interactor.GetEventPosition()
+    if actions["Slicing"] == 1:
+        deltaY = mouseY - lastY
+        # reslice.Update()
+        
+        # sphere.SetRadius(sphere.GetRadius()+deltaY)
+        reslicer.Update()
         
         
+        sliceSpacing = reslicer.GetOutput().GetSpacing()[2]
+        matrix = reslicer.GetResliceAxes()
+        # move the center point that we are slicing through
+        center = matrix.MultiplyPoint((0, 0, sliceSpacing*deltaY, 1))
+        matrix.SetElement(0, 3, center[0])
+        matrix.SetElement(1, 3, center[1])
+        matrix.SetElement(2, 3, center[2])
+        global window
+        window.Render()
+    else:
+        interactorStyle.OnMouseMove()
 
 
-class App(QtWidgets.QApplication):
-    def __init__(self, sys_argv):
-        super(App, self).__init__(sys_argv)
-        
-        self.applicationName = "Test"
-        
-        self.main_view = LoadModelColumn()
+def SweepLine(line, direction, distance, cols):
+    rows = line.GetNumberOfPoints()
+    spacing = distance / cols
+    surface = vtk.vtkPolyData()
+    cols += 1
+    numberOfPoints = rows * cols
+    numberOfPolys = (rows - 1) * (cols - 1)
+    points = vtk.vtkPoints()
+    points.Allocate(numberOfPoints)
+    polys = vtk.vtkCellArray()
+    polys.Allocate(numberOfPolys * 4)
+    x = [0.0, 0.0, 0.0]
+    cnt = 0
+    for row in range(rows):
+        for col in range(cols):
+            p = [0.0, 0.0, 0.0]
+            line.GetPoint(row, p)
+            x[0] = p[0] + direction[0] * col * spacing
+            x[1] = p[1] + direction[1] * col * spacing
+            x[2] = p[2] + direction[2] * col * spacing
+            points.InsertPoint(cnt, x)
+            cnt += 1
+    pts = [0, 0, 0, 0]
+    for row in range(rows - 1):
+        for col in range(cols - 1):
+            pts[0] = col + row * (cols)
+            pts[1] = pts[0] + 1
+            pts[2] = pts[0] + cols + 1
+            pts[3] = pts[0] + cols
+            polys.InsertNextCell(4, pts)
+    surface.SetPoints(points)
+    surface.SetPolys(polys)
+    return surface
 
-
-
-if __name__ == '__main__':
-    app = App(sys.argv)
-    app.main_view.show()
-    app.exec()
-    sys.exit()
+main()
