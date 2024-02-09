@@ -31,17 +31,17 @@ class MyMainWindow(QtWidgets.QMainWindow):
         self.reader.SetFileName(filename)
         self.reader.Update()
         
-        shifter =  vtk.vtkImageShiftScale()
-        shifter.SetShift(16)
-        shifter.SetInputConnection(self.reader.GetOutputPort())
-        shifter.Update()
-        self.mesh = shifter        
+        # shifter =  vtk.vtkImageShiftScale()
+        # shifter.SetShift(16)
+        # shifter.SetInputConnection(self.reader.GetOutputPort())
+        # shifter.Update()
+        # self.reader = shifter        
          
         
         # Calculate the center of the volume
-        (xMin, xMax, yMin, yMax, zMin, zMax) = self.reader.GetExecutive().GetWholeExtent(self.reader.GetOutputInformation(0))
+        (self.xMin, self.xMax, self.yMin, self.yMax, self.zMin, self.zMax) = self.reader.GetExecutive().GetWholeExtent(self.reader.GetOutputInformation(0))
         (self.xSpacing, self.ySpacing, self.zSpacing) = self.reader.GetOutput().GetSpacing()
-        (x0, y0, z0) = self.reader.GetOutput().GetOrigin()
+        (self.x0, self.y0, self.z0) = self.reader.GetOutput().GetOrigin()
 
         
         # self.center = [x0 + xSpacing * 0.5 * (xMin + xMax),
@@ -63,7 +63,7 @@ class MyMainWindow(QtWidgets.QMainWindow):
         
   
         self.threshold = vtk.vtkImageThreshold()
-        self.threshold.SetInputConnection(self.mesh.GetOutputPort()) # Set your input vtkImageData
+        self.threshold.SetInputConnection(self.reader.GetOutputPort()) # Set your input vtkImageData
         self.threshold.ThresholdByUpper(500) # Set the threshold value
         self.threshold.ReplaceInOn() # Set the operation to replace in values
         self.threshold.SetInValue(1) # Set the value for inside the threshold
@@ -167,6 +167,8 @@ class MyMainWindow(QtWidgets.QMainWindow):
         self.interactorStyle.AddObserver("RightButtonPressEvent", self.ButtonCallback)
 
         self.iren.Initialize()
+        
+        
         
         
         
@@ -373,7 +375,7 @@ class MyMainWindow(QtWidgets.QMainWindow):
         coord = coordinate.GetComputedWorldValue(self.ren)
         
         
-        value = self.mesh.GetOutput().GetScalarComponentAsDouble(round(coord[0]/self.xSpacing), round(coord[1]/self.ySpacing), round(self.z_pos/self.zSpacing), 0)
+        value = self.reader.GetOutput().GetScalarComponentAsDouble(round(coord[0]/self.xSpacing), round(coord[1]/self.ySpacing), round(self.z_pos/self.zSpacing), 0)
         value_threshed = self.threshold.GetOutput().GetScalarComponentAsDouble(round(coord[0]/self.xSpacing), round(coord[1]/self.ySpacing), round(self.z_pos/self.zSpacing), 0)
         # self.source.SetCenter(coord[0], coord[1], 0)
         

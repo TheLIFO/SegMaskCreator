@@ -59,13 +59,14 @@ def main():
 
     # Create transfer mapping scalar value to opacity.
     opacityTransferFunction = vtkPiecewiseFunction()
-    opacityTransferFunction.AddPoint(20, 0.0)
-    opacityTransferFunction.AddPoint(255, 0.2)
+    opacityTransferFunction.AddPoint(0, 0.0)
+    opacityTransferFunction.AddPoint(450, 0.0)
+    opacityTransferFunction.AddPoint(451, 0.2)
     
     opacityThreshedTransferFunction = vtkPiecewiseFunction()
     opacityThreshedTransferFunction.AddPoint(0, 0)
     opacityThreshedTransferFunction.AddPoint(1, 1)
-    opacityThreshedTransferFunction.AddPoint(255, 1)
+    opacityThreshedTransferFunction.AddPoint(2500, 1)
     
     # Create transfer mapping scalar value to color.
     colorTransferFunction = vtkColorTransferFunction()
