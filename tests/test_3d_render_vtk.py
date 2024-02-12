@@ -138,14 +138,14 @@ def main():
     interactorStyle = vtk.vtkInteractorStyleTrackballCamera()
     iren.SetInteractorStyle(interactorStyle)
         
-    interactorStyle.AddObserver("MouseMoveEvent", MouseMoveCallback)
-    interactorStyle.AddObserver("RightButtonPressEvent", ButtonCallback)
-    interactorStyle.AddObserver("RightButtonReleaseEvent", ButtonCallback)
+    interactorStyle.AddObserver("MouseMoveEvent", MouseMoveCallback3D)
+    interactorStyle.AddObserver("RightButtonPressEvent", ButtonCallback3D)
+    interactorStyle.AddObserver("RightButtonReleaseEvent", ButtonCallback3D)
     # iren.Initialize()
     iren.Start()
   
    
-def ButtonCallback(obj, event):
+def ButtonCallback3D(obj, event):
     global slicing
     global interactorStyle
     print ("button cb called, event ", event)
@@ -165,7 +165,7 @@ def ButtonCallback(obj, event):
             # self.iren.Render()
             # pass
 
-def MouseMoveCallback(obj, event):
+def MouseMoveCallback3D(obj, event):
     global slicing
     global iren
     global threshold

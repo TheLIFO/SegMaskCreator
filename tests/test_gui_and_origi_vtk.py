@@ -22,7 +22,6 @@ class MyMainWindow(QtWidgets.QMainWindow):
         self.z_pos = 0
         self.center = None
         
-        
         self.reslicer = None
 
         # Start by loading some data.
@@ -30,13 +29,8 @@ class MyMainWindow(QtWidgets.QMainWindow):
         filename = "data\Drydisk07.6.nrrd"
         self.reader.SetFileName(filename)
         self.reader.Update()
+
         
-        # shifter =  vtk.vtkImageShiftScale()
-        # shifter.SetShift(16)
-        # shifter.SetInputConnection(self.reader.GetOutputPort())
-        # shifter.Update()
-        # self.reader = shifter        
-         
         
         # Calculate the center of the volume
         (self.xMin, self.xMax, self.yMin, self.yMax, self.zMin, self.zMax) = self.reader.GetExecutive().GetWholeExtent(self.reader.GetOutputInformation(0))
@@ -44,39 +38,33 @@ class MyMainWindow(QtWidgets.QMainWindow):
         (self.x0, self.y0, self.z0) = self.reader.GetOutput().GetOrigin()
 
         
-        # self.center = [x0 + xSpacing * 0.5 * (xMin + xMax),
-        #         y0 + ySpacing * 0.5 * (yMin + yMax),
-        #         z0 + zSpacing * 0.5 * (zMin + zMax)]
-        
         self.center = [0,0,0]
         
-        # colors = vtk.vtkNamedColors()
-        
-        # lookupTable = vtk.vtkLookupTable()
-        # lookupTable.SetNumberOfTableValues(2)
-        # lookupTable.SetRange(0.0, 1.0)
-        # lookupTable.SetTableValue(0, 0.0, 0.0, 0.0, 0.0) # label 0 is transparent
-        # col = colors.GetColor4d("Khaki")
-        # lookupTable.SetTableValue(
-        #     1, col[0], col[1], col[2], col[3]) # label 1 is opaque and colored
-        # lookupTable.Build()
-        
+        self.thresholdVal = 900
+        self.threshed = vtk.vtkImageThreshold()
+        self.threshed.SetInputConnection(self.reader.GetOutputPort()) # Set your input vtkImageData
+        self.threshed.ThresholdByUpper(self.thresholdVal) # Set the threshold value
+        self.threshed.ReplaceInOn() # Set the operation to replace in values
+        self.threshed.SetInValue(1) # Set the value for inside the threshold
+        self.threshed.ReplaceOutOn() # Set the operation to replace out values
+        self.threshed.SetOutValue(0) # Set the value for outside the threshold
+        self.threshed.Update()
   
-        self.threshold = vtk.vtkImageThreshold()
-        self.threshold.SetInputConnection(self.reader.GetOutputPort()) # Set your input vtkImageData
-        self.threshold.ThresholdByUpper(500) # Set the threshold value
-        self.threshold.ReplaceInOn() # Set the operation to replace in values
-        self.threshold.SetInValue(1) # Set the value for inside the threshold
-        self.threshold.ReplaceOutOn() # Set the operation to replace out values
-        self.threshold.SetOutValue(0) # Set the value for outside the threshold
-        self.threshold.Update()
+        # self.threshold = vtk.vtkImageThreshold()
+        # self.threshold.SetInputConnection(self.reader.GetOutputPort()) # Set your input vtkImageData
+        # self.threshold.ThresholdByUpper(500) # Set the threshold value
+        # self.threshold.ReplaceInOn() # Set the operation to replace in values
+        # self.threshold.SetInValue(1) # Set the value for inside the threshold
+        # self.threshold.ReplaceOutOn() # Set the operation to replace out values
+        # self.threshold.SetOutValue(0) # Set the value for outside the threshold
+        # self.threshold.Update()
 
-        self.combined = vtk.vtkImageBlend()
-        # self.combined.AddInputConnection(self.mesh.GetOutputPort())                 
-        self.combined.AddInputConnection(self.threshold.GetOutputPort()) 
-        self.combined.SetOpacity(0, 0.5)
-        self.combined.SetOpacity(1, 1)
-        self.combined.Update()
+        # self.combined = vtk.vtkImageBlend()
+        # # self.combined.AddInputConnection(self.mesh.GetOutputPort())                 
+        # self.combined.AddInputConnection(self.threshold.GetOutputPort()) 
+        # self.combined.SetOpacity(0, 0.5)
+        # self.combined.SetOpacity(1, 1)
+        # self.combined.Update()
         
         
         scalarBar = vtk.vtkScalarBarActor()
@@ -86,7 +74,8 @@ class MyMainWindow(QtWidgets.QMainWindow):
         
         # self.reslicer, self.actor, self.mapToColors = self.extract_slice(self.combined)
         # self.reslicer, self.actor, self.mapToColors = self.extract_slice(self.threshold)
-        self.reslicer, self.actor, self.mapToColors = self.extract_slice(self.reader)
+        self.reslicer, self.actor, self.mapper = self.extract_slice(self.reader, self.get_my_table())
+        self.reslicerThreshed, self.actorThreshed, self.mapperThreshed = self.extract_slice(self.threshed, self.get_my_table_threshed())
 
         # self.reslicerSphere, self.actorSpeher, self.sphere = self.extract_sphere(self.reader)
 
@@ -97,83 +86,192 @@ class MyMainWindow(QtWidgets.QMainWindow):
         self.ren.SetActiveCamera(self.camera)
         
         # self.renderer.AddActor(self.actor)
-        self.ren.SetBackground(1, 1, 1)
+        # self.ren.SetBackground(1, 1, 1)
+
+        
 
         self.vtkWidget = QVTKRenderWindowInteractor(self)
         self.vtkWidget.GetRenderWindow().AddRenderer(self.ren)
         self.iren = self.vtkWidget.GetRenderWindow().GetInteractor()
         
-        # Set up layout
-        self.layout = QtWidgets.QVBoxLayout()
-        self.layout.addWidget(self.vtkWidget)
         
-        # Create a central widget and set the layout
-        self.centralWidget = QtWidgets.QWidget()
-        self.centralWidget.setLayout(self.layout)
-        self.setCentralWidget(self.centralWidget)
-
         self.actorAssembly = vtk.vtkAssembly()
         self.actorAssembly.AddPart(self.actor)
+        self.actorAssembly.AddPart(self.actorThreshed)
         
-         # Create source
-        self.source = vtk.vtkSphereSource()
-        self.source.SetCenter(100, 100, 0)
-        self.source.SetRadius(0.5)
-
-        # Create a mapper
-        mapper = vtk.vtkPolyDataMapper()
-        mapper.SetInputConnection(self.source.GetOutputPort())
-
-        # Create an actor
-        sphereActor = vtk.vtkActor()
-        sphereActor.SetMapper(mapper)
-        
-        self.actorAssembly.AddPart(sphereActor)
-        
+       
         self.ren.AddActor(self.actorAssembly)
-        self.ren.AddActor2D(scalarBar)
+        # self.ren.AddActor2D(scalarBar)
         
         axisActorX = vtk.vtkAxisActor2D()
-        axisActorX.SetPoint1(0, 250)
-        axisActorX.SetPoint2(0, 250)
+        axisActorX.SetPoint1(-10, 250)
+        axisActorX.SetPoint2(-10, 250)
         axisActorX.SetTitle("X-Axis")
         axisActorX.SetNumberOfLabels(5)
         axisActorX.AxisVisibilityOn()
+        axisActorX.LabelVisibilityOn()
+        axisActorX.TickVisibilityOn()
+        axisActorX.TitleVisibilityOn()
         self.ren.AddActor2D(axisActorX) 
         
         axisActorY = vtk.vtkAxisActor2D()
-        axisActorY.SetPoint1(0, 250)
-        axisActorY.SetPoint2(0, 250)
+        axisActorY.SetPoint1(0, -10)
+        axisActorY.SetPoint2(250, -10)
         axisActorY.SetTitle("Y-Axis")
         axisActorY.SetNumberOfLabels(5)
         axisActorY.AxisVisibilityOn()
         self.ren.AddActor2D(axisActorY) 
         
+        
         self.ren.ResetCamera()
         self.ren.ResetCameraClippingRange()
         # Set up the interaction        
         self.interactorStyle = vtk.vtkInteractorStyleImage()
-        
-        
-        self.iren.SetInteractorStyle(self.interactorStyle)
-        
-        # self.renderWindow.SetInteractor(self.interactor)
-        
+        self.iren.SetInteractorStyle(self.interactorStyle)  
 
         self.interactorStyle.AddObserver("MouseMoveEvent", self.MouseMoveCallback)
         self.interactorStyle.AddObserver("LeftButtonPressEvent", self.ButtonCallback)
         self.interactorStyle.AddObserver("LeftButtonReleaseEvent", self.ButtonCallback)
+        self.interactorStyle.AddObserver("RightButtonPressEvent", self.ButtonCallback)        
+        # self.iren.Initialize()
+        self.iren.Start()
+        
+        
+        self.ren3D = vtk.vtkRenderer()
+        # camera3D = vtk.vtkCamera()
+        # self.ren3D.SetActiveCamera(camera3D)
+        self.vtkWidget3D = QVTKRenderWindowInteractor(self)
+        self.vtkWidget3D.GetRenderWindow().AddRenderer(self.ren3D)
+        self.iren3D = self.vtkWidget3D.GetRenderWindow().GetInteractor()
 
-        self.interactorStyle.AddObserver("RightButtonPressEvent", self.ButtonCallback)
+        
+        
 
-        self.iren.Initialize()
+        # Create transfer mapping scalar value to opacity.
+        opacityTransferFunction = vtk.vtkPiecewiseFunction()
+        opacityTransferFunction.AddPoint(0, 0.0)
+        opacityTransferFunction.AddPoint(450, 0.0)
+        opacityTransferFunction.AddPoint(451, 0.2)
+        
+        opacityThreshedTransferFunction = vtk.vtkPiecewiseFunction()
+        opacityThreshedTransferFunction.AddPoint(0, 0)
+        opacityThreshedTransferFunction.AddPoint(1, 1)
+        opacityThreshedTransferFunction.AddPoint(2500, 1)
+        
+        # Create transfer mapping scalar value to color.
+        colorTransferFunction = vtk.vtkColorTransferFunction()
+        colorTransferFunction.AddRGBPoint(0.0, 0.0, 0.0, 0.0)
+        colorTransferFunction.AddRGBPoint(255.0, 1.0, 1.0, 1.0)
+
+        colorThreshedTransferFunction = vtk.vtkColorTransferFunction()
+        colorThreshedTransferFunction.AddRGBPoint(0.0, 1.0, 0.0, 0.0)
+        colorThreshedTransferFunction.AddRGBPoint(255.0, 1.0, 0.0, 0.0)
+        
+        # The property describes how the data will look.
+        volumeProperty = vtk.vtkVolumeProperty()
+        volumeProperty.SetColor(colorTransferFunction)
+        volumeProperty.SetScalarOpacity(opacityTransferFunction)
+        volumeProperty.ShadeOn()
+        volumeProperty.SetInterpolationTypeToLinear()
+
+        # The property describes how the data will look.
+        volumeThreshedProperty = vtk.vtkVolumeProperty()
+        volumeThreshedProperty.SetColor(colorThreshedTransferFunction)
+        volumeThreshedProperty.SetScalarOpacity(opacityThreshedTransferFunction)
+        volumeThreshedProperty.ShadeOn()
+        volumeThreshedProperty.SetInterpolationTypeToLinear()
+
+
+        # The mapper / ray cast function know how to render the data.
+        volumeMapper = vtk.vtkFixedPointVolumeRayCastMapper()
+        volumeMapper.SetInputConnection(self.reader.GetOutputPort())
+        
+        # The volume holds the mapper and the property and
+        # can be used to position/orient the volume.
+        volume = vtk.vtkVolume()
+        volume.SetMapper(volumeMapper)
+        volume.SetProperty(volumeProperty)
+
+            # The mapper / ray cast function know how to render the data.
+        volumeThreshedMapper = vtk.vtkFixedPointVolumeRayCastMapper()
+        volumeThreshedMapper.SetInputConnection(self.threshed.GetOutputPort())
+
+      
+        # The volume holds the mapper and the property and
+        # can be used to position/orient the volume.
+        volumeThreshed = vtk.vtkVolume()
+        volumeThreshed.SetMapper(volumeThreshedMapper)
+        volumeThreshed.SetProperty(volumeThreshedProperty)
+
+        colors = vtk.vtkNamedColors()
+        self.ren3D.AddVolume(volume)
+        self.ren3D.AddVolume(volumeThreshed)
+        self.ren3D.SetBackground(colors.GetColor3d('Wheat'))
+        self.ren3D.GetActiveCamera().Azimuth(45)
+        self.ren3D.GetActiveCamera().Elevation(30)
+        self.ren3D.ResetCameraClippingRange()
+        self.ren3D.ResetCamera()
+                    
+        self.interactorStyle3D = vtk.vtkInteractorStyleTrackballCamera()
+        self.iren3D.SetInteractorStyle(self.interactorStyle3D)
+        self.buttonpressed3D = 0
+        
+        self.interactorStyle3D.AddObserver("MouseMoveEvent", self.MouseMoveCallback3D)
+        self.interactorStyle3D.AddObserver("RightButtonPressEvent", self.ButtonCallback3D)
+        self.interactorStyle3D.AddObserver("RightButtonReleaseEvent", self.ButtonCallback3D)
+        # self.iren3D.Initialize()
+        self.iren3D.Start()
+        
+        # Set up layout
+        self.layout = QtWidgets.QVBoxLayout()
+        self.layout.addWidget(self.vtkWidget)
+        self.layout.addWidget(self.vtkWidget3D)
+        
+        
+        # Create a central widget and set the layout
+        self.centralWidget = QtWidgets.QWidget()
+        self.centralWidget.setLayout(self.layout)
+        self.setCentralWidget(self.centralWidget)
+                
+        
+    def ButtonCallback3D(self, obj, event):
+    
+        print ("button cb called, event ", event)
+        if event == "RightButtonPressEvent":
+            self.buttonpressed3D = 1
+        else:
+            self.buttonpressed3D = 0
+            
+
+    def MouseMoveCallback3D(self, obj, event):
+        
+        
+        (lastX, lastY) = self.iren3D.GetLastEventPosition()
+        (mouseX, mouseY) = self.iren3D.GetEventPosition()        
+        
+        if self.buttonpressed3D == 1:
+            deltaY = mouseY - lastY
+            # reslice.Update()
+            
+            # sphere.SetRadius(sphere.GetRadius()+deltaY)
+            
+            self.thresholdVal = self.thresholdVal + deltaY
+            print ("threshold...", self.thresholdVal)
+        
+            self.threshed.ThresholdByUpper(self.thresholdVal) # Set the threshold value    
+            self.threshed.Update()
+            
+            self.iren3D.Render()
+            self.iren.Render()
+        else:
+            self.interactorStyle3D.OnMouseMove()
         
         
         
-        
-        
-    def CloseEvent(self, QCloseEvent):
-        pass
+    def closeEvent(self, QCloseEvent):
+        super().closeEvent(QCloseEvent)
+        self.vtkWidget.Finalize()   
+        self.vtkWidget3D.Finalize()   
 
     
     def get_table(self):
@@ -186,6 +284,22 @@ class MyMainWindow(QtWidgets.QMainWindow):
         table.Build()
         return table
 
+    def get_my_table_threshed(self):
+        
+        # Create a vtkLookupTable from the vtkColorTransferFunction
+        lut = vtk.vtkLookupTable()
+        lut.SetNumberOfColors(2) # Set the number of colors
+        lut.SetNumberOfTableValues(2)  
+        
+
+       
+        lut.SetTableValue(0, 0.0, 0.0, 0.0, 0.0)  # Set the RGBA values for each color
+        lut.SetTableValue(1, 1.0, 0.0, 0.0, 0.8)  # Set the RGBA values for each color
+        lut.Build()
+        
+        # Set the range of scalar values
+        return lut
+    
     def get_my_table(self):
         # Create a vtkColorTransferFunction
         color_tf = vtk.vtkColorTransferFunction()
@@ -197,19 +311,16 @@ class MyMainWindow(QtWidgets.QMainWindow):
 
         # Create a vtkLookupTable from the vtkColorTransferFunction
         lut = vtk.vtkLookupTable()
-        lut.SetTableRange(16, 256)  # Set the number of colors
-        lut.SetRange(16, 2000)  # Assuming your scalar values range from 0 to 2000
+        lut.SetTableRange(0, 255)  # Set the number of colors
+        lut.SetRange(1, 2000)  # Assuming your scalar values range from 0 to 2000
 
-        for i in range(240): # 0 .. 239
-            val = i / 239.0
+        for i in range(256): # 0 .. 255
+            val = i / 255.0
             color = color_tf.GetColor(val)
-            lut.SetTableValue(i + 15, color[0], color[1], color[2], 1.0)  # Set the RGBA values for each color
+            lut.SetTableValue(i, color[0], color[1], color[2], 1.0)  # Set the RGBA values for each color
 
         lut.Build()
-        lut.SetTableValue(0, 1.0, 0.0, 0.0, 0.5)  # Set the RGBA values for each color
-        lut.SetTableValue(1, 0.0, 1.0, 0.0, 0.5)  # Set the RGBA values for each color
-        for i in range(2, 16):
-            lut.SetTableValue(i, 1.0, 0.0, 0.0, 0.5)
+
         # Set the range of scalar values
         return lut
 
@@ -233,7 +344,7 @@ class MyMainWindow(QtWidgets.QMainWindow):
         lut.Build()
         return lut
         
-    def extract_slice(self, input):
+    def extract_slice(self, input, lut_table):
 
         # Extract a slice in the desired orientation
         reslice = vtk.vtkImageReslice()
@@ -245,6 +356,10 @@ class MyMainWindow(QtWidgets.QMainWindow):
                            0, 0, 1, self.center[2],
                            0, 0, 0, 1))
         
+        # sagittal.DeepCopy((1, 0, 0, self.center[0],
+        #                    0, 0, 1, self.center[1],
+        #                    0, 1, 0, self.center[2],
+        #                    0, 0, 0, 1))
         
         reslice.SetResliceAxes(sagittal)
         reslice.SetInterpolationModeToLinear()
@@ -256,7 +371,7 @@ class MyMainWindow(QtWidgets.QMainWindow):
         # Create an instance of vtkImageMapToColors
         mapToColors = vtk.vtkImageMapToColors()
         mapToColors.SetInputConnection(reslice.GetOutputPort())  # Set the input as the extracted slice from vtkImageReslice
-        mapToColors.SetLookupTable(self.get_my_table())
+        mapToColors.SetLookupTable(lut_table)
         mapToColors.Update() # Update the vtkImageMapToColors
 
         actor = vtk.vtkImageActor()
@@ -356,7 +471,8 @@ class MyMainWindow(QtWidgets.QMainWindow):
         
         
         if event == "RightButtonPressEvent":
-            self.mapToColors.SetLookupTable(self.get_table())
+            # self.actor.GetMapper().GetInputConnection().SetLookupTable(self.get_table()) 
+            self.mapper.SetLookupTable(self.get_table())
             self.ren.SetBackground(1, 1, 1)
             
             # self.mesh().Get
@@ -373,16 +489,26 @@ class MyMainWindow(QtWidgets.QMainWindow):
         coordinate.SetCoordinateSystemToDisplay()
         coordinate.SetValue(mouseX, mouseY)
         coord = coordinate.GetComputedWorldValue(self.ren)
+        #transform coordinates from local orientation to global one according to resliceorientation
+        resliceaxes = self.reslicer.GetResliceAxes()
+        print("coord:", coord)
+        print("orientation:", resliceaxes)
+        coord = (coord[0], coord[1], resliceaxes.GetElement(2,3))
         
         
-        value = self.reader.GetOutput().GetScalarComponentAsDouble(round(coord[0]/self.xSpacing), round(coord[1]/self.ySpacing), round(self.z_pos/self.zSpacing), 0)
-        value_threshed = self.threshold.GetOutput().GetScalarComponentAsDouble(round(coord[0]/self.xSpacing), round(coord[1]/self.ySpacing), round(self.z_pos/self.zSpacing), 0)
-        # self.source.SetCenter(coord[0], coord[1], 0)
+        # translate coordinates into array indices
+        x = round(coord[0]/self.xSpacing)
+        y = round(coord[1]/self.ySpacing)
+        z = round(coord[2]/self.zSpacing)
         
-        # self.iren.Render()
-        
-        
-        print("x: ", mouseX, " y: ", mouseY, "world-x: ",coord[0], " world-y: ", coord[1],"world-z: ", self.z_pos,"   Scalar: ", value, "threshed: ", value_threshed)
+        if (x < self.xMin) or (x > self.xMax) or (y < self.yMin) or (y > self.yMax) or (z < self.zMin) or (z > self.zMax):            
+            value = 0
+            value_threshed = 0
+        else:
+            value          = self.reader.GetOutput().GetScalarComponentAsDouble(x, y, z, 0)
+            value_threshed = self.threshed.GetOutput().GetScalarComponentAsDouble(x, y, z, 0)
+                
+        print("x: ", mouseX, " y: ", mouseY, "world-x: ",coord[0], " world-y: ", coord[1],"world-z: ", coord[2],"   Scalar: ", value, "threshed: ", value_threshed)
         if self.actions["Slicing"] == 1:
             deltaY = mouseY - lastY
             # reslice.Update()
@@ -394,66 +520,27 @@ class MyMainWindow(QtWidgets.QMainWindow):
             axes = self.reslicer.GetResliceAxes()
             # move the center point that we are slicing through
             center = axes.MultiplyPoint((0, 0, sliceSpacing*deltaY, 1))
-            print ("Z = ", center[2])
-            self.z_pos = center[2]
+            print ("new Z = ", center[2])
+            
             axes.SetElement(0, 3, center[0])
             axes.SetElement(1, 3, center[1])
             axes.SetElement(2, 3, center[2])
             self.reslicer.Update()
+            
+            
+            
+            self.reslicerThreshed.SetResliceAxes(axes)            
+            self.reslicerThreshed.Update()
             
             self.iren.Render()
         else:
             self.interactorStyle.OnMouseMove()
 
 
-    def SweepLine(self, line, direction, distance, cols):
-        """
-        Create a surface by sweeping a line with a given direction and distance.
-        
-        Parameters:
-            line (vtkPolyData) : The input line.
-            direction (list) : The direction to sweep the line.
-            distance (float) : The distance to sweep the line.
-            cols (int) : The number of columns for the surface.
-        
-        Returns:
-            vtkPolyData : The resulting surface created by sweeping the line.
-        """
-        rows = line.GetNumberOfPoints()
-        spacing = distance / cols
-        surface = vtk.vtkPolyData()
-        cols += 1
-        numberOfPoints = rows * cols
-        numberOfPolys = (rows - 1) * (cols - 1)
-        points = vtk.vtkPoints()
-        points.Allocate(numberOfPoints)
-        polys = vtk.vtkCellArray()
-        polys.Allocate(numberOfPolys * 4)
-        x = [0.0, 0.0, 0.0]
-        cnt = 0
-        for row in range(rows):
-            for col in range(cols):
-                p = [0.0, 0.0, 0.0]
-                line.GetPoint(row, p)
-                x[0] = p[0] + direction[0] * col * spacing
-                x[1] = p[1] + direction[1] * col * spacing
-                x[2] = p[2] + direction[2] * col * spacing
-                points.InsertPoint(cnt, x)
-                cnt += 1
-        pts = [0, 0, 0, 0]
-        for row in range(rows - 1):
-            for col in range(cols - 1):
-                pts[0] = col + row * (cols)
-                pts[1] = pts[0] + 1
-                pts[2] = pts[0] + cols + 1
-                pts[3] = pts[0] + cols
-                polys.InsertNextCell(4, pts)
-        surface.SetPoints(points)
-        surface.SetPolys(polys)
-        return surface
+   
 
 if __name__ == '__main__':
     app = QtWidgets.QApplication(sys.argv)
     window = MyMainWindow()
     window.show()
-    sys.exit(app.exec_())
+    app.exec_()
