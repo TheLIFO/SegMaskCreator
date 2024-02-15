@@ -2,9 +2,11 @@ from PyQt5 import uic
 
 from PyQt5 import QtWidgets
 from PyQt5.QtCore import pyqtSlot
-import pyvista as pv
+import vtk
+from vtk.qt.QVTKRenderWindowInteractor import QVTKRenderWindowInteractor
+# import pyvista as pv
 
-from pyvistaqt import QtInteractor
+# from pyvistaqt import QtInteractor
 
 
 
@@ -23,8 +25,12 @@ class View3D(QtWidgets.QWidget):
         layout = QtWidgets.QGridLayout()    
         self.setLayout(layout)    
         
-        self.plotter3D =  QtInteractor(self)    
-        layout.addWidget(self.plotter3D, 0, 0)
+        self.renderer3D = vtk.vtkRenderer()
+        self.vtkWidget3D = QVTKRenderWindowInteractor(self)
+        self.vtkWidget3D.GetRenderWindow().AddRenderer(self.renderer3D)
+        self.iren3D = self.vtkWidget3D.GetRenderWindow().GetInteractor()
+          
+        layout.addWidget(self.vtkWidget3D, 0, 0)
         
         
         self.ui_view = uic.loadUi("views/ui_threshold.ui")        
@@ -53,7 +59,7 @@ class View3D(QtWidgets.QWidget):
     def on_threshold_changed(self, threshold):
         self.ui_view.horizontal_slider_threshold.setValue(threshold)
         self.ui_view.spinBox_threshold.setValue(threshold)
-        self.plot_mesh()
+        self.update_mesh()
         
     def on_threshold_bounds_changed(self, threshold_bounds):
         self.ui_view.horizontal_slider_threshold.setMinimum(round(threshold_bounds["min"]))
@@ -64,16 +70,17 @@ class View3D(QtWidgets.QWidget):
     
     def closeEvent(self, QCloseEvent):
         super().closeEvent(QCloseEvent)
-        self.plotter3D.Finalize() # does not work -> creates weird openGL error
+        self.vtkWidget3D.Finalize() # does not work?
         
-        
-    @pyqtSlot(pv.DataSet)
+    @pyqtSlot()
     def on_mesh_changed(self):
-        self.plot_mesh()
+        self.update_mesh()
+        
     
  
-    def plot_mesh(self):        
-        self.plotter3D.add_mesh(self._model.mesh, name = 'view3D')
-        self.plotter3D.show_axes_all()
+    def update_mesh(self):        
+        # self.plotter3D.add_mesh(self._model.mesh, name = 'view3D')
+        # self.plotter3D.show_axes_all()
         # self.plotter3D.set_scale(self._model.mesh_scale[0], self._model.mesh_scale[1], self._model.mesh_scale[2], True)
-        self.update()
+        # self.update()
+        self.iren3D.Render()

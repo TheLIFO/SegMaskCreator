@@ -1,15 +1,16 @@
-import pyvista
+# import pyvista
 from PyQt5.QtWidgets import QWidget
 from PyQt5.QtCore import Qt, QObject, pyqtSignal
-import pyvista as pv
+# import pyvista as pv
 from model.knot_data import KnotData 
 import nrrd
 import copy
+import vtk
     
 class Model(QObject):
     # signals when model changes
     knotdata_changed = pyqtSignal(KnotData)
-    mesh_changed = pyqtSignal(pv.DataSet)
+    mesh_changed = pyqtSignal()
     slice_bounds_changed = pyqtSignal(object)
     slice_pos_changed = pyqtSignal(object)
     show_cut_views_changed = pyqtSignal(object)
@@ -56,13 +57,19 @@ class Model(QObject):
     def load_imagedata(self, filename):
         print ("loading file:", filename)
                       
-        reader = pyvista.get_reader(filename)
-        reader.show_progress()
-        self.mesh_orig = reader.read() 
+        reader = vtk.vtkNrrdReader()
+        reader.SetFileName(filename)
+        # reader.show_progress()
+        reader.Update()
         
-        mesh = copy.deepcopy(self.mesh_orig)
-        mesh = mesh.threshold(100)
-        self.threshold = 100
+        self.threshold_val = 900
+        self.mesh_threshed = vtk.vtkImageThreshold()
+        self.mesh_threshed.SetInputConnection(reader.GetOutputPort()) # Set your input vtkImageData
+        self.mesh_threshed.ThresholdByUpper(self.threshold_val) # Set the threshold value
+        self.mesh_threshed.ReplaceInOn() # Set the operation to replace in values
+        self.mesh_threshed.SetInValue(1) # Set the value for inside the threshold
+        self.mesh_threshed.ReplaceOutOn() # Set the operation to replace out values
+        self.mesh_threshed.SetOutValue(0) # Set the value for outside the threshold
         
         self.mesh_scale = (1, 1, 1)
         self.mesh_origin = (0, 0, 0)
@@ -76,10 +83,19 @@ class Model(QObject):
         except:
             pass
         
-        mesh = mesh.translate(self.mesh_origin)
-        mesh = mesh.scale(self.mesh_scale)
+        
+        transform = vtk.vtkTransform()
+        transform.Translate(self.mesh_origin)
+        transformModel = vtk.vtkTransformFilter()
+        transformModel.SetTransform(transform)
+        transformModel.SetInputConnection(reader.GetOutputPort())
+       
+        
+        
+        # mesh = transform().GetOutput()
+        # mesh = mesh.scale(self.mesh_scale)
         # obtain new bounds
-        xmin, xmax, ymin, ymax, zmin, zmax = mesh.bounds 
+        xmin, xmax, ymin, ymax, zmin, zmax = reader.GetOutput().GetBounds() 
         xmin = round(xmin * 2) / 2
         xmax = round(xmax * 2) / 2
         ymin = round(ymin * 2) / 2
@@ -93,18 +109,18 @@ class Model(QObject):
                                 "r_a": {"min": 0, "max": 360},
                                 "r_x": {"min": xmin, "max": xmax},
                                 "r_y": {"min": ymin, "max": ymax} }
-        self.slice_pos = {  "x": round(mesh.center[0] * 2) / 2,
-                            "y": round(mesh.center[1] * 2) / 2,
-                            "z": round(mesh.center[2] * 2) / 2, 
+        self.slice_pos = {  "x": round(reader.GetOutput().GetCenter()[0] * 2) / 2,
+                            "y": round(reader.GetOutput().GetCenter()[1] * 2) / 2,
+                            "z": round(reader.GetOutput().GetCenter()[2] * 2) / 2, 
                             "r": max(round((xmax-xmin)/2), round((ymax-ymin)/2)) / 2,
-                            "r_x": round(mesh.center[0] * 2) / 2,
-                            "r_y": round(mesh.center[1] * 2) / 2,
+                            "r_x": round(reader.GetOutput().GetCenter()[0] * 2) / 2,
+                            "r_y": round(reader.GetOutput().GetCenter()[1] * 2) / 2,
                             "r_a": 0.0}
         
         self.threshold_bounds = { "min": 0, "max": 3000}
         self.knotdata = KnotData(filename)
         
-        self.mesh = mesh # set new mesh here to trigger also setting new bounds
+        self.mesh = reader # set new mesh here to trigger also setting new bounds
         
    
     @property
@@ -113,7 +129,7 @@ class Model(QObject):
     @mesh.setter
     def mesh(self, mesh):
         self._mesh = mesh
-        self.mesh_changed.emit(mesh)
+        self.mesh_changed.emit()
     
     @property
     def knotdata(self):

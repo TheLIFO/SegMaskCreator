@@ -8,6 +8,7 @@ from vtkmodules.vtkCommonDataModel import vtkSphere
 from vtkmodules.vtkImagingCore import vtkImageReslice
 from PyQt5 import QtWidgets
 from vtk.qt.QVTKRenderWindowInteractor import QVTKRenderWindowInteractor
+import numpy as np
 
 
 class MyMainWindow(QtWidgets.QMainWindow):
@@ -27,7 +28,12 @@ class MyMainWindow(QtWidgets.QMainWindow):
 
         self.reader = vtk.vtkNrrdReader()
         self.reader.SetFileName("")
-
+        self.xMin = 0
+        self.xMax = 0
+        self.yMin = 0
+        self.yMax = 0
+        self.zMin = 0
+        self.zMax = 0
         
         self.center = [0,0,0]
         
@@ -65,30 +71,69 @@ class MyMainWindow(QtWidgets.QMainWindow):
         
         # self.reslicer, self.actor, self.mapToColors = self.extract_slice(self.combined)
         # self.reslicer, self.actor, self.mapToColors = self.extract_slice(self.threshold)
-        self.reslicer, self.actor, self.mapper = self.extract_slice(self.reader, self.get_my_table())
-        self.reslicerThreshed, self.actorThreshed, self.mapperThreshed = self.extract_slice(self.threshed, self.get_my_table_threshed())
+        # self.reslicer, self.actor, self.mapper = self.extract_slice(self.reader, self.get_my_table())
+        # self.reslicerThreshed, self.actorThreshed, self.mapperThreshed = self.extract_slice(self.threshed, self.get_my_table_threshed())
 
-        # self.reslicerSphere, self.actorSpeher, self.sphere = self.extract_sphere(self.reader)
+        self.ren3D = vtk.vtkRenderer()
+        self.vtkWidget3D = QVTKRenderWindowInteractor(self)
+        self.vtkWidget3D.GetRenderWindow().AddRenderer(self.ren3D)
+        self.iren3D = self.vtkWidget3D.GetRenderWindow().GetInteractor()
+
+        self.planeWidget = vtk.vtkImagePlaneWidget()
+        self.planeWidget.SetInteractor(self.iren3D)        
+        self.planeWidget.SetResliceInterpolateToCubic()   
+        self.planeWidget.SetMarginSizeX(0)
+        self.planeWidget.SetMarginSizeY(0)
+        self.planeWidget.AddObserver('InteractionEvent', self.on_clip_plane_changed)
+        self.planeWidget.SetCurrentRenderer(self.ren3D)
+        
+        
+        self.reslicer = self.planeWidget.GetReslice()
+        
+        self.mapper = vtk.vtkImageMapToColors()
+        self.mapper.SetInputConnection(self.reslicer.GetOutputPort())  # Set the input as the extracted slice from vtkImageReslice
+        self.mapper.SetLookupTable(self.get_my_table())        
+
+        self.actor = vtk.vtkImageActor()
+        self.actor.GetMapper().SetInputConnection(self.mapper.GetOutputPort())
+        
+        
+
+        
+        self.reslicer_threshed = vtk.vtkImageReslice()
+        self.reslicer_threshed.SetOutputDimensionality(2)
+        self.reslicer_threshed.SetOutputSpacing(self.reslicer.GetOutputSpacing())
+        self.reslicer_threshed.SetOutputOrigin(self.reslicer.GetOutputOrigin())
+        self.reslicer_threshed.SetResliceAxes(self.reslicer.GetResliceAxes())
+        self.reslicer_threshed.SetInputConnection(self.threshed.GetOutputPort())
+        
+        
+        # Create an instance of vtkImageMapToColors
+        self.mapperThreshed = vtk.vtkImageMapToColors()
+        self.mapperThreshed.SetInputConnection(self.reslicer_threshed.GetOutputPort())  # Set the input as the extracted slice from vtkImageReslice
+        self.mapperThreshed.SetLookupTable(self.get_my_table_threshed())
+
+        self.actorThreshed = vtk.vtkImageActor()
+        self.actorThreshed.GetMapper().SetInputConnection(self.mapperThreshed.GetOutputPort())
+                
+        
+        # self.reslicerThreshed, self.actorThreshed, self.mapperThreshed = self.extract_slice(self.threshed, self.get_my_table_threshed())
+        
 
         # Display the image
+        
         self.ren = vtk.vtkRenderer()
         self.camera = vtk.vtkCamera()
         self.camera.ParallelProjectionOn()
         self.ren.SetActiveCamera(self.camera)
-        
-        # self.renderer.AddActor(self.actor)
-        # self.ren.SetBackground(1, 1, 1)
-
-        
-
         self.vtkWidget = QVTKRenderWindowInteractor(self)
         self.vtkWidget.GetRenderWindow().AddRenderer(self.ren)
         self.iren = self.vtkWidget.GetRenderWindow().GetInteractor()
         
         
         self.actorAssembly = vtk.vtkAssembly()
-        self.actorAssembly.AddPart(self.actor)
         self.actorAssembly.AddPart(self.actorThreshed)
+        self.actorAssembly.AddPart(self.actor)
         
        
         self.ren.AddActor(self.actorAssembly)
@@ -127,15 +172,9 @@ class MyMainWindow(QtWidgets.QMainWindow):
   
         
         
-        self.ren3D = vtk.vtkRenderer()
-        # camera3D = vtk.vtkCamera()
-        # self.ren3D.SetActiveCamera(camera3D)
-        self.vtkWidget3D = QVTKRenderWindowInteractor(self)
-        self.vtkWidget3D.GetRenderWindow().AddRenderer(self.ren3D)
-        self.iren3D = self.vtkWidget3D.GetRenderWindow().GetInteractor()
+    
+        
 
-        
-        
 
         # Create transfer mapping scalar value to opacity.
         opacityTransferFunction = vtk.vtkPiecewiseFunction()
@@ -369,91 +408,14 @@ class MyMainWindow(QtWidgets.QMainWindow):
         actor = vtk.vtkImageActor()
         actor.GetMapper().SetInputConnection(mapToColors.GetOutputPort())
         
+        
+        
         return reslice, actor, mapToColors
 
-    def extract_sphere(self, reader):
-
-        """
-        # Create an instance of vtkCutter
-        cutter = vtkCutter()
-
-        # Set the input data to the cutter
-        cutter.SetInputConnection(reader.GetOutputPort())
-
-        # Set the cut function using vtkSphere as an example
-        sphere = vtkSphere()
-        sphere.SetCenter(center[0], center[1], center[2])  # Set the center of the sphere
-        sphere.SetRadius(50)  # Set the radius of the sphere
-        
-        cutter.SetCutFunction(sphere)
-
-        # Update the cutter to generate the output
-        cutter.Update()
-
-        
-        # here is the magic:
-        # Create an instance of vtkPolyDataToImageStencil
-        polyDataToImageStencil = vtk.vtkPolyDataToImageStencil()
-        polyDataToImageStencil.SetInputConnection(cutter.GetOutputPort())
-        polyDataToImageStencil.Update()
-
-        # Create an instance of vtkImageStencil
-        imageStencil = vtk.vtkImageStencil()
-        imageStencil.SetInputConnection(reader.GetOutputPort())
-        imageStencil.SetStencilConnection(polyDataToImageStencil.GetOutputPort())
-        imageStencil.ReverseStencilOn()  # This may be necessary depending on your specific use case
-        imageStencil.Update()
-
-        # Now you can use the result of the imageStencil as input for vtkImageMapToColors
-        mapToColors.SetInputData(imageStencil.GetOutput())  # Set the input as the extracted slice from vtkImageReslice
-        """
-
-        # create surface
-        surface = vtk.vtkCylinderSource()
-        surface.SetCenter(reader.GetOutput().GetCenter()[0], reader.GetOutput().GetCenter()[1], reader.GetOutput().GetCenter()[2])
-        surface.SetRadius(50.0)
-        surface.SetHeight(200.0)
-        surface.SetResolution(1000)
-            
-        
-        
-        # Create points for the plane
-        points = vtk.vtkPoints()
-        points.InsertNextPoint(0, 0, 100)  # Define the first point
-        points.InsertNextPoint(200, 0, 100)  # Define the second point
-        points.InsertNextPoint(200, 200, 100)  # Define the third point
-        points.InsertNextPoint(0, 200, 100)  # Define the fourth point
-
-        # Create a grid to represent the plane
-        plane = vtk.vtkPolyData()
-        plane.SetPoints(points)
-        plane.Allocate(1, 1)
-        idlist = vtk.vtkIdList()
-        idlist.SetArray([0, 1, 2, 3], 4)
-        plane.InsertNextCell(vtk.VTK_QUAD, idlist)  # Define the quad cell using the point IDs
-
-        # Create a data source from the polydata
-        planeDataSource = vtk.vtkPolyDataAlgorithm()
-        planeDataSource.SetOutput(plane)
-
-        sample_volume = vtk.vtkProbeFilter()
-        sample_volume.SetSourceConnection(reader.GetOutputPort())
-        sample_volume.SetInputData(planeDataSource.GetOutput())
-        
-        
-        mapper = vtk.vtkImageMapper()
-        # mapper.SetInputConnection(sample_volume.GetOutputPort())
-        
-        mapper.SetInputConnection(reader.GetOutputPort())
-        actor = vtk.vtkImageActor()
-        # actor.GetProperty().SetColorWindow(colors.GetColor3d("Cornsilk").GetData())
-        # actor.SetMapper(mapper)
-        # actor.GetMapper().SetInputConnection(mapToColors.GetOutputPort())  
-
-        return sample_volume, actor, plane
+    
 
 
-
+    
     def ButtonCallback(self, obj, event):
         print ("button cb called, event ", event)
         if event == "LeftButtonPressEvent":
@@ -481,10 +443,12 @@ class MyMainWindow(QtWidgets.QMainWindow):
         coordinate.SetCoordinateSystemToDisplay()
         coordinate.SetValue(mouseX, mouseY)
         coord = coordinate.GetComputedWorldValue(self.ren)
+        print("coord:", coord)
+        
+        
         #transform coordinates from local orientation to global one according to resliceorientation
         resliceaxes = self.reslicer.GetResliceAxes()
-        print("coord:", coord)
-        print("orientation:", resliceaxes)
+        # print("orientation:", resliceaxes)
         coord = (coord[0], coord[1], resliceaxes.GetElement(2,3))
         
         
@@ -502,6 +466,7 @@ class MyMainWindow(QtWidgets.QMainWindow):
                 
         print("x: ", mouseX, " y: ", mouseY, "world-x: ",coord[0], " world-y: ", coord[1],"world-z: ", coord[2],"   Scalar: ", value, "threshed: ", value_threshed)
         if self.actions["Slicing"] == 1:
+            print("slicing")
             deltaY = mouseY - lastY
             # reslice.Update()
             
@@ -509,22 +474,18 @@ class MyMainWindow(QtWidgets.QMainWindow):
             
             # print ("slice...", deltaY)
             sliceSpacing = self.reslicer.GetOutput().GetSpacing()[2]
-            axes = self.reslicer.GetResliceAxes()
-            # move the center point that we are slicing through
-            center = axes.MultiplyPoint((0, 0, sliceSpacing*deltaY, 1))
-            print ("new Z = ", center[2])
             
-            axes.SetElement(0, 3, center[0])
-            axes.SetElement(1, 3, center[1])
-            axes.SetElement(2, 3, center[2])
+          
+            position = self.planeWidget.GetSlicePosition()
+            self.planeWidget.SetSlicePosition(position + deltaY)
+            
+            
             self.reslicer.Update()
-            
-            
-            
-            self.reslicerThreshed.SetResliceAxes(axes)            
-            self.reslicerThreshed.Update()
-            
+            self.reslicer_threshed.Update()
+            self.reslicer_threshed.SetOutputOrigin(self.reslicer.GetOutputOrigin())
+            self.reslicer_threshed.SetResliceAxes(self.reslicer.GetResliceAxes())
             self.iren.Render()
+            self.iren3D.Render()
         else:
             self.interactorStyle.OnMouseMove()
 
@@ -534,13 +495,43 @@ class MyMainWindow(QtWidgets.QMainWindow):
         self.ren3D.ResetCameraClippingRange()
         self.ren3D.ResetCamera()
         self.iren3D.Start()
+        
+        self.planeWidget.SetInputConnection(self.reader.GetOutputPort())
+        self.planeWidget.SetPlaneOrientationToZAxes()
+        self.planeWidget.On()
+
+        
+        (self.xMin, self.xMax, self.yMin, self.yMax, self.zMin, self.zMax) = self.reader.GetExecutive().GetWholeExtent(self.reader.GetOutputInformation(0))
+        (self.xSpacing, self.ySpacing, self.zSpacing) = self.reader.GetOutput().GetSpacing()
+        
+        self.planeWidget.PlaceWidget(self.xMin*self.xSpacing, self.xMax*self.xSpacing, self.yMin*self.ySpacing, self.yMax*self.ySpacing, self.zMin*self.zSpacing, self.zMax*self.zSpacing)
+        
+
         self.iren3D.Render()
         
         self.ren.ResetCamera()
-        self.ren.ResetCameraClippingRange()
+        self.ren.ResetCameraClippingRange()        
         self.iren.Start()
         self.iren.Render()
+    
+    
+    def on_clip_plane_changed(self, caller = None, event = None ): 
+        # print("plane position changed, caller = ", caller, " and event = " , event)
         
+        
+        # self.slice = caller.GetResliceOutput()
+        # caller.GetReslice().UpdatePlacement()
+        # caller.GetReslice().UpdatePlane()
+        # caller.UpdatePlane()
+        self.reslicer.Update()
+        # self.reslicer_threshed.SetOutputOrigin(self.reslicer.GetOutputOrigin())
+        # self.reslicer_threshed.SetResliceAxes(self.reslicer.GetResliceAxes())
+        self.iren.Render()
+        
+        
+        
+        
+        print("new origin for plane...ok")   
 
     def load_data(self):
         # Start by loading some data.

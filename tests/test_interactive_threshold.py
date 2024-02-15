@@ -62,7 +62,8 @@ class MyMainWindow(MainWindow):
         self.clip_plane_widget.SetSliceIndex(32)
         self.clip_plane_widget.SetPicker(self.picker)
         self.clip_plane_widget.On()
-        self.clip_plane_widget.AddObserver('EndInteractionEvent', self.on_clip_plane_changed)
+        # self.clip_plane_widget.AddObserver('EndInteractionEvent', self.on_clip_plane_changed)
+        self.clip_plane_widget.AddObserver('InteractionEvent', self.on_clip_plane_changed)
         # self.clip_plane_widget.SetCallback , test_callback = False, callback = self.on_clip_plane_changed, interaction_event="always",)
         # slicer = self.clip_plane_widget.GetReslice()
         self.slice = self.clip_plane_widget.GetResliceOutput()
@@ -152,7 +153,7 @@ class MyMainWindow(MainWindow):
 
 
     def on_clip_plane_changed(self, caller = None, event = None ): 
-        print("new origin for plane ")
+        print("new origin for plane from caller = ", caller, " and event = " , event)
         # print(origin, " ...")
         # self.plane.SetOrigin(origin)
         # self.cutter.Update()

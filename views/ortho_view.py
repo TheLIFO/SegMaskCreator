@@ -63,23 +63,62 @@ class OrthoView(QtWidgets.QWidget):
         self._model.slice_bounds_changed.connect(self.on_slice_bounds_changed)
         self._model.show_cut_views_changed.connect(self.on_show_cut_views_changed)
 
-        self.cutter_YZ = vtk.vtkCutter()
+        axes = vtk.vtkMatrix4x4()
+        self.reslice_YZ = vtk.vtkImageReslice()
+        self.reslice_YZ.SetOutputDimensionality(2)
+        self.reslice_YZ.SetInputConnection(self._model.mesh.GetOutputPort())
+        axes.DeepCopy((1, 0, 0, self._model.mesh.GetOutput().GetCenter()[0],
+                           0, 1, 0, self._model.mesh.GetOutput().GetCenter()[1],
+                           0, 0, 1, self._model.mesh.GetOutput().GetCenter()[2],
+                           0, 0, 0, 1))
+        self.reslice_YZ.SetResliceAxes(axes)
+        self.reslice_YZ.SetInterpolationModeToLinear()
         self.plane_YZ = vtk.vtkPlane()
         
-        self.cutter_XZ = vtk.vtkCutter()
+        self.reslice_XZ = vtk.vtkImageReslice()
+        self.reslice_XZ.SetOutputDimensionality(2)
+        self.reslice_XZ.SetInputConnection(self._model.mesh.GetOutputPort())
+        axes.DeepCopy((1, 0, 0, self._model.mesh.GetOutput().GetCenter()[0],
+                           0, 1, 0, self._model.mesh.GetOutput().GetCenter()[1],
+                           0, 0, 1, self._model.mesh.GetOutput().GetCenter()[2],
+                           0, 0, 0, 1))
+        self.reslice_XZ.SetResliceAxes(axes)
+        self.reslice_XZ.SetInterpolationModeToLinear()
         self.plane_XZ = vtk.vtkPlane()
 
-        self.cutter_XY = vtk.vtkCutter()
+        self.reslice_XY = vtk.vtkImageReslice()
+        self.reslice_XY.SetOutputDimensionality(2)
+        self.reslice_XY.SetInputConnection(self._model.mesh.GetOutputPort())
+        axes.DeepCopy((1, 0, 0, self._model.mesh.GetOutput().GetCenter()[0],
+                           0, 1, 0, self._model.mesh.GetOutput().GetCenter()[1],
+                           0, 0, 1, self._model.mesh.GetOutput().GetCenter()[2],
+                           0, 0, 0, 1))
+        self.reslice_XY.SetResliceAxes(axes)
+        self.reslreslice_XYice_YZ.SetInterpolationModeToLinear()
         self.plane_XY = vtk.vtkPlane()
         
-        self.cutter_R = vtk.vtkCutter()
+        self.reslice_R = vtk.vtkImageReslice()
+        self.reslice_R.SetOutputDimensionality(2)
+        self.reslice_R.SetInputConnection(self._model.mesh.GetOutputPort())
+        axes.DeepCopy((1, 0, 0, self._model.mesh.GetOutput().GetCenter()[0],
+                           0, 1, 0, self._model.mesh.GetOutput().GetCenter()[1],
+                           0, 0, 1, self._model.mesh.GetOutput().GetCenter()[2],
+                           0, 0, 0, 1))
+        self.reslice_R.SetResliceAxes(axes)
+        self.reslice_R.SetInterpolationModeToLinear()
         self.plane_R = vtk.vtkPlane()
         
-        self.cutter_RC = vtk.vtkCutter()
+        self.reslice_RC = vtk.vtkImageReslice()
+        self.reslice_RC.SetOutputDimensionality(2)
+        self.reslice_RC.SetInputConnection(self._model.mesh.GetOutputPort())
+        axes.DeepCopy((1, 0, 0, self._model.mesh.GetOutput().GetCenter()[0],
+                           0, 1, 0, self._model.mesh.GetOutput().GetCenter()[1],
+                           0, 0, 1, self._model.mesh.GetOutput().GetCenter()[2],
+                           0, 0, 0, 1))
+        self.reslice_RC.SetResliceAxes(axes)
+        self.reslice_RC.SetInterpolationModeToLinear()
         self.plane_RC = vtk.vtkPlane()
-        
 
-        # self.plotter_ortho_views.subplot(0, 0)
         self.clip_plane_widget_X = self.plotter3D.add_plane_widget(assign_to_axis = 'x', test_callback = False, callback = self.on_clip_plane_X_changed, interaction_event="always",)
         self.clip_plane_widget_Y = self.plotter3D.add_plane_widget(assign_to_axis = 'y', test_callback = False, callback = self.on_clip_plane_Y_changed, interaction_event="always",)
         self.clip_plane_widget_Z = self.plotter3D.add_plane_widget(assign_to_axis = 'z', test_callback = False, callback = self.on_clip_plane_Z_changed, interaction_event="always",)
@@ -143,7 +182,7 @@ class OrthoView(QtWidgets.QWidget):
                                     "r_y": self._model.slice_pos["r_y"] }
         
                  
-    @pyqtSlot(pv.DataSet)
+    @pyqtSlot()
     def on_mesh_changed(self):
         if self._model.mesh is None:
             return
@@ -194,13 +233,13 @@ class OrthoView(QtWidgets.QWidget):
         print("update plot 3D ortho...(cutter)")
         
         if self._model.show_cut_views["x"]:
-            self.cutter_YZ.Update()
+            self.reslice_YZ.Update()
         if self._model.show_cut_views["y"]:
-            self.cutter_XZ.Update()
+            self.reslice_XZ.Update()
         if self._model.show_cut_views["z"]:
-            self.cutter_XY.Update()
+            self.reslice_XY.Update()
         if self._model.show_cut_views["r"]:
-            self.cutter_R.Update()
+            self.reslice_R.Update()
 
 
         self.clip_plane_widget_X.SetOrigin([self._model.slice_pos["x"], self._model.mesh.center[1], self._model.mesh.center[2]])
@@ -226,34 +265,34 @@ class OrthoView(QtWidgets.QWidget):
         self.plotter3D.show_axes_all()
         # self.plotter3D.set_scale(self._model.mesh_scale[0], self._model.mesh_scale[1], self._model.mesh_scale[2], True)
                
-        self.cutter_YZ.SetInputData(self._model.mesh)
-        self.cutter_YZ.SetCutFunction(self.plane_YZ)        
-        self.plane_YZ.SetOrigin(self._model.mesh.center)
+        self.reslice_YZ.SetInputData(self._model.mesh.GetOutputPort())
+        self.reslice_YZ.SetCutFunction(self.plane_YZ)        
+        self.plane_YZ.SetOrigin(self._model.mesh.GetOutput.GetCenter())
         self.plane_YZ.SetNormal(1, 0, 0)
         
-        self.cutter_XZ.SetInputData(self._model.mesh)
-        self.cutter_XZ.SetCutFunction(self.plane_XZ)        
-        self.plane_XZ.SetOrigin(self._model.mesh.center)
+        self.reslice_XZ.SetInputData(self._model.mesh.GetOutputPort())
+        self.reslice_XZ.SetCutFunction(self.plane_XZ)        
+        self.plane_XZ.SetOrigin(self._model.mesh.GetOutput.GetCenter())
         self.plane_XZ.SetNormal(0, 1, 0)
         
-        self.cutter_XY.SetInputData(self._model.mesh)
-        self.cutter_XY.SetCutFunction(self.plane_XY)        
-        self.plane_XY.SetOrigin(self._model.mesh.center)
+        self.reslice_XY.SetInputData(self._model.mesh.GetOutputPort())
+        self.reslice_XY.SetCutFunction(self.plane_XY)        
+        self.plane_XY.SetOrigin(self._model.mesh.GetOutput.GetCenter())
         self.plane_XY.SetNormal(0, 0, 1)
         
-        self.cutter_R.SetInputData(self._model.mesh)
-        self.cutter_R.SetCutFunction(self.plane_R)        
-        self.plane_R.SetOrigin(self._model.mesh.center)
+        self.reslice_R.SetInputData(self._model.mesh.GetOutputPort())
+        self.reslice_R.SetCutFunction(self.plane_R)        
+        self.plane_R.SetOrigin(self._model.mesh.GetOutput.GetCenter())
         self.plane_R.SetNormal(0, 0, 1)
         
-        self.cutter_RC.SetInputData(self._model.mesh)
-        self.cutter_RC.SetCutFunction(self.plane_RC)        
-        self.plane_RC.SetOrigin(self._model.mesh.center)
+        self.reslice_RC.SetInputData(self._model.mesh.GetOutputPort())
+        self.reslice_RC.SetCutFunction(self.plane_RC)        
+        self.plane_RC.SetOrigin(self._model.mesh.GetOutput.GetCenter())
         self.plane_RC.SetNormal(0, 0, 1)
         
         
         font_scale = 1.5
-        self.cut_YZ_actor = self.plotter_ortho_view_yz.add_mesh(self.cutter_YZ, name = "cutter_YZ", show_scalar_bar = False)
+        self.cut_YZ_actor = self.plotter_ortho_view_yz.add_mesh(self.reslice_YZ, name = "cutter_YZ", show_scalar_bar = False)
         self.plotter_ortho_view_yz.view_yz()
         self.plotter_ortho_view_yz.enable_parallel_projection()
         self.plotter_ortho_view_yz.add_ruler(
@@ -269,7 +308,7 @@ class OrthoView(QtWidgets.QWidget):
                 title="Z Distance",
                 font_size_factor = font_scale)
         
-        self.cut_XZ_actor = self.plotter_ortho_view_xz.add_mesh(self.cutter_XZ, name = "cutter_XZ", show_scalar_bar = False)
+        self.cut_XZ_actor = self.plotter_ortho_view_xz.add_mesh(self.reslice_XZ, name = "cutter_XZ", show_scalar_bar = False)
         self.plotter_ortho_view_xz.view_xz()
         self.plotter_ortho_view_xz.enable_parallel_projection()
         self.plotter_ortho_view_xz.add_ruler(
@@ -286,7 +325,7 @@ class OrthoView(QtWidgets.QWidget):
                 font_size_factor = font_scale)
         
         
-        self.cut_XY_actor = self.plotter_ortho_view_xy.add_mesh(self.cutter_XY, name = "cutter_XY", show_scalar_bar = False)
+        self.cut_XY_actor = self.plotter_ortho_view_xy.add_mesh(self.reslice_XY, name = "cutter_XY", show_scalar_bar = False)
         self.plotter_ortho_view_xy.view_xy()
         self.plotter_ortho_view_xy.enable_parallel_projection()
         self.plotter_ortho_view_xy.add_ruler(
@@ -302,11 +341,11 @@ class OrthoView(QtWidgets.QWidget):
                 title="Y Distance",
                 font_size_factor = font_scale)
 
-        self.cut_R_actor_actor = self.plotter_ortho_view_r.add_mesh(self.cutter_R, name = "cutter_R", show_scalar_bar = False)
+        self.cut_R_actor_actor = self.plotter_ortho_view_r.add_mesh(self.reslice_R, name = "cutter_R", show_scalar_bar = False)
         self.plotter_ortho_view_r.view_xy()
         self.plotter_ortho_view_r.enable_parallel_projection()
         
-        self.cut_RC_actor_actor = self.plotter_ortho_view_rc.add_mesh(self.cutter_RC, name = "cutter_RC", show_scalar_bar = False)
+        self.cut_RC_actor_actor = self.plotter_ortho_view_rc.add_mesh(self.reslice_RC, name = "cutter_RC", show_scalar_bar = False)
         self.plotter_ortho_view_rc.view_vector([0,1,0])
         self.plotter_ortho_view_rc.enable_parallel_projection()
         
