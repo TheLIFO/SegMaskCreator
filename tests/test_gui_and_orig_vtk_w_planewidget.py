@@ -1,6 +1,6 @@
 
 import sys
-
+import math
 import vtk
 from vtkmodules.vtkFiltersCore import vtkCutter
 from vtkmodules.vtkCommonDataModel import vtkSphere
@@ -86,22 +86,39 @@ class MyMainWindow(QtWidgets.QMainWindow):
         self.planeWidget.SetMarginSizeY(0)
         self.planeWidget.AddObserver('InteractionEvent', self.on_clip_plane_changed)
         self.planeWidget.SetCurrentRenderer(self.ren3D)
+        self.planeWidget.TextureVisibilityOn()
+        # self.planeWidget.GetTexturePlaneProperty().SetColor(1,0,0)
+        # self.planeWidget.GetTexturePlaneProperty().SetOpacity(1)
+        # self.planeWidget.GetTexturePlaneProperty().SetColor(colors.GetColor3d("Green"))
+        
+        
+        # prop = self.planeWidget.GetPlaneProperty()
+        # prop.SetOpacity(0.2)
+        # prop.SetColor(colors.GetColor3d("Green"))  
+        # self.planeWidget.SetPlaneProperty(prop)
         
         
         self.reslicer = self.planeWidget.GetReslice()
+        self.reslicer.SetOutputSpacing(.5,.5,.5)
         
-        self.mapper = vtk.vtkImageMapToColors()
-        self.mapper.SetInputConnection(self.reslicer.GetOutputPort())  # Set the input as the extracted slice from vtkImageReslice
-        self.mapper.SetLookupTable(self.get_my_table())        
+        mapper = vtk.vtkImageMapToColors()
+        mapper.SetInputConnection(self.reslicer.GetOutputPort())  # Set the input as the extracted slice from vtkImageReslice
+        mapper.SetLookupTable(self.get_my_table())        
 
         self.actor = vtk.vtkImageActor()
-        self.actor.GetMapper().SetInputConnection(self.mapper.GetOutputPort())
+        self.actor.GetMapper().SetInputConnection(mapper.GetOutputPort())
         
+        self.sphere = vtk.vtkSphereSource()
+        self.sphere.SetRadius(0.5)  
+        mapper = vtk.vtkPolyDataMapper()
+        mapper.SetInputConnection(self.sphere.GetOutputPort())
+        sphereactor = vtk.vtkActor()
+        sphereactor.SetMapper(mapper)
+        sphereactor.GetProperty().SetColor(colors.GetColor3d("Gold"))
         
-
         
         self.reslicer_threshed = vtk.vtkImageReslice()
-        self.reslicer_threshed.SetOutputDimensionality(2)
+        # self.reslicer_threshed.SetOutputDimensionality(2)
         self.reslicer_threshed.SetOutputSpacing(self.reslicer.GetOutputSpacing())
         self.reslicer_threshed.SetOutputOrigin(self.reslicer.GetOutputOrigin())
         self.reslicer_threshed.SetResliceAxes(self.reslicer.GetResliceAxes())
@@ -119,13 +136,65 @@ class MyMainWindow(QtWidgets.QMainWindow):
         
         # self.reslicerThreshed, self.actorThreshed, self.mapperThreshed = self.extract_slice(self.threshed, self.get_my_table_threshed())
         
+        """
+        # reslicer shape cylinder:
+        # rotate the image so that the cylinder cuts through it as desired
+        rotate = vtk.vtkImageReslice()
+        rotate.SetInputConnection(self.reader.GetOutputPort())
+        rotate.SetResliceAxesDirectionCosines(
+        -1, 0, 0,
+        0, -1, 0,
+        0, 0, 1 )
+        rotate.Update()
+        
+        # get the image geometry
+        o = rotate.GetOutput().GetOrigin()
+        s = rotate.GetOutput().GetSpacing()
+        ex = rotate.GetOutput().GetExtent()
+        
+        # new information for cylindrical coordinate geometry
+        self.radialSize = 64
+        origin = [ 0.0, 0.0, o[2] ]
+        spacing = [ s[0], 2*math.pi/self.radialSize, s[2] ]
+        extent = [  ex[0], (ex[1] + 1)/2 - 1,
+                    0, self.radialSize - 1,
+                    ex[4], ex[5]     ]
+        # Unwrap with a cylindrical transform
+        transform = vtk.vtkCylindricalTransform()
 
-        # Display the image
+        self.reslice_cyl = vtk.vtkImageReslice()
+        self.reslice_cyl.SetInputConnection(rotate.GetOutputPort())
+        self.reslice_cyl.SetInterpolationModeToCubic()
+        self.reslice_cyl.SetResliceTransform(transform)
+        self.reslice_cyl.SetOutputOrigin(origin)
+        self.reslice_cyl.SetOutputSpacing(spacing)        
+        extent  = [int(np.round(x)) for x in extent]        
+        self.reslice_cyl.SetOutputExtent(extent)
+        self.reslice_cyl.Update()
+
+        
+        # Multiply angular spacing by the radius
+        r = 100.0
+        stretch = vtk.vtkImageChangeInformation()
+        stretch.SetInputConnection(self.reslice.GetOutputPort())
+        stretch.SetOutputSpacing(spacing[0], r*spacing[1], spacing[2])
+        
+        
+        mapper = vtk.vtkImageMapToColors()
+        mapper.SetInputConnection(self.reslice_cyl.GetOutputPort())  # Set the input as the extracted slice from vtkImageReslice
+        mapper.SetLookupTable(self.get_my_table())        
+        
+
+        self.actor_cyl = vtk.vtkImageActor()
+        self.actor_cyl.GetMapper().SetInputConnection(mapper.GetOutputPort())
+        
+        """
+        # Display the images
         
         self.ren = vtk.vtkRenderer()
-        self.camera = vtk.vtkCamera()
-        self.camera.ParallelProjectionOn()
-        self.ren.SetActiveCamera(self.camera)
+        camera = vtk.vtkCamera()
+        camera.ParallelProjectionOn()
+        self.ren.SetActiveCamera(camera)
         self.vtkWidget = QVTKRenderWindowInteractor(self)
         self.vtkWidget.GetRenderWindow().AddRenderer(self.ren)
         self.iren = self.vtkWidget.GetRenderWindow().GetInteractor()
@@ -138,6 +207,8 @@ class MyMainWindow(QtWidgets.QMainWindow):
        
         self.ren.AddActor(self.actorAssembly)
         self.ren.AddActor2D(scalarBar)
+        self.ren.AddActor(sphereactor)
+        # self.ren.AddActor(self.actor_cyl)
         
         axisActorX = vtk.vtkAxisActor2D()
         axisActorX.SetPoint1(-10, 250)
@@ -165,10 +236,10 @@ class MyMainWindow(QtWidgets.QMainWindow):
         self.interactorStyle = vtk.vtkInteractorStyleImage()
         self.iren.SetInteractorStyle(self.interactorStyle)  
 
-        self.interactorStyle.AddObserver("MouseMoveEvent", self.MouseMoveCallback)
-        self.interactorStyle.AddObserver("LeftButtonPressEvent", self.ButtonCallback)
-        self.interactorStyle.AddObserver("LeftButtonReleaseEvent", self.ButtonCallback)
-        self.interactorStyle.AddObserver("RightButtonPressEvent", self.ButtonCallback)        
+        self.interactorStyle.AddObserver("MouseMoveEvent", self.mouseMoveCallback)
+        self.interactorStyle.AddObserver("LeftButtonPressEvent", self.buttonCallback)
+        self.interactorStyle.AddObserver("LeftButtonReleaseEvent", self.buttonCallback)
+        self.interactorStyle.AddObserver("RightButtonPressEvent", self.buttonCallback)        
   
         
         
@@ -243,9 +314,9 @@ class MyMainWindow(QtWidgets.QMainWindow):
         self.iren3D.SetInteractorStyle(self.interactorStyle3D)
         self.buttonpressed3D = 0
         
-        self.interactorStyle3D.AddObserver("MouseMoveEvent", self.MouseMoveCallback3D)
-        self.interactorStyle3D.AddObserver("RightButtonPressEvent", self.ButtonCallback3D)
-        self.interactorStyle3D.AddObserver("RightButtonReleaseEvent", self.ButtonCallback3D)
+        self.interactorStyle3D.AddObserver("MouseMoveEvent", self.mouseMoveCallback3D)
+        self.interactorStyle3D.AddObserver("RightButtonPressEvent", self.buttonCallback3D)
+        self.interactorStyle3D.AddObserver("RightButtonReleaseEvent", self.buttonCallback3D)
         
         
         
@@ -265,7 +336,7 @@ class MyMainWindow(QtWidgets.QMainWindow):
         self.setCentralWidget(self.centralWidget)
                 
         
-    def ButtonCallback3D(self, obj, event):
+    def buttonCallback3D(self, obj, event):
     
         print ("button cb called, event ", event)
         if event == "RightButtonPressEvent":
@@ -274,7 +345,7 @@ class MyMainWindow(QtWidgets.QMainWindow):
             self.buttonpressed3D = 0
             
 
-    def MouseMoveCallback3D(self, obj, event):
+    def mouseMoveCallback3D(self, obj, event):
         
         
         (lastX, lastY) = self.iren3D.GetLastEventPosition()
@@ -350,6 +421,7 @@ class MyMainWindow(QtWidgets.QMainWindow):
             color = color_tf.GetColor(val)
             lut.SetTableValue(i, color[0], color[1], color[2], 1.0)  # Set the RGBA values for each color
 
+        
         lut.Build()
 
         # Set the range of scalar values
@@ -416,7 +488,7 @@ class MyMainWindow(QtWidgets.QMainWindow):
 
 
     
-    def ButtonCallback(self, obj, event):
+    def buttonCallback(self, obj, event):
         print ("button cb called, event ", event)
         if event == "LeftButtonPressEvent":
             self.actions["Slicing"] = 1
@@ -425,19 +497,18 @@ class MyMainWindow(QtWidgets.QMainWindow):
         
         
         if event == "RightButtonPressEvent":
-            # self.actor.GetMapper().GetInputConnection().SetLookupTable(self.get_table()) 
-            self.mapper.SetLookupTable(self.get_table())
-            self.ren.SetBackground(1, 1, 1)
             
-            # self.mesh().Get
             
-            self.iren.Render()
+            # self.ren.SetBackground(1, 1, 1)
+            
+            # self.iren.Render()
             pass
 
-    def MouseMoveCallback(self, obj, event):
+    def mouseMoveCallback(self, obj, event):
         
         (lastX, lastY) = self.iren.GetLastEventPosition()
         (mouseX, mouseY) = self.iren.GetEventPosition()        
+        
         
         coordinate = vtk.vtkCoordinate()
         coordinate.SetCoordinateSystemToDisplay()
@@ -445,11 +516,18 @@ class MyMainWindow(QtWidgets.QMainWindow):
         coord = coordinate.GetComputedWorldValue(self.ren)
         print("coord:", coord)
         
-        
+        self.sphere.SetCenter(coord[0], coord[1], 0)
+        self.iren.Render()
         #transform coordinates from local orientation to global one according to resliceorientation
-        resliceaxes = self.reslicer.GetResliceAxes()
+        # resliceaxes = self.reslicer.GetResliceAxes()
         # print("orientation:", resliceaxes)
-        coord = (coord[0], coord[1], resliceaxes.GetElement(2,3))
+        # coord = (coord[0], coord[1], resliceaxes.GetElement(2,3))
+        
+        # now the same thinf with proper matrix transformation
+        origin = self.reslicer.GetOutput().GetOrigin()
+        pixel = [coord[0], coord[1]]
+        resliceAxes = self.reslicer.GetResliceAxes()
+        coord = resliceAxes.MultiplyDoublePoint([pixel[0]+origin[0], pixel[1]+origin[1], origin[2], 1])
         
         
         # translate coordinates into array indices
@@ -464,7 +542,11 @@ class MyMainWindow(QtWidgets.QMainWindow):
             value          = self.reader.GetOutput().GetScalarComponentAsDouble(x, y, z, 0)
             value_threshed = self.threshed.GetOutput().GetScalarComponentAsDouble(x, y, z, 0)
                 
-        print("x: ", mouseX, " y: ", mouseY, "world-x: ",coord[0], " world-y: ", coord[1],"world-z: ", coord[2],"   Scalar: ", value, "threshed: ", value_threshed)
+        print("x mouse: ", mouseX, " y mouse: ", mouseY, "world-x: ",coord[0], " world-y: ", coord[1],"world-z: ", coord[2],"   Scalar: ", value, "threshed: ", value_threshed)
+        
+        
+        
+        
         if self.actions["Slicing"] == 1:
             print("slicing")
             deltaY = mouseY - lastY
@@ -497,10 +579,8 @@ class MyMainWindow(QtWidgets.QMainWindow):
         self.iren3D.Start()
         
         self.planeWidget.SetInputConnection(self.reader.GetOutputPort())
-        self.planeWidget.SetPlaneOrientationToZAxes()
-        self.planeWidget.On()
-
-        
+        # self.planeWidget.SetPlaneOrientationToZAxes()
+        self.planeWidget.SetPlaneOrientationToYAxes()
         (self.xMin, self.xMax, self.yMin, self.yMax, self.zMin, self.zMax) = self.reader.GetExecutive().GetWholeExtent(self.reader.GetOutputInformation(0))
         (self.xSpacing, self.ySpacing, self.zSpacing) = self.reader.GetOutput().GetSpacing()
         

@@ -25,6 +25,7 @@ class Model(QObject):
         
         self._knotdata = None    
         self._mesh = None
+        self.mesh_threshed = None
         self.mesh_actor = None
         
         
@@ -40,10 +41,9 @@ class Model(QObject):
                                "r_a": {"min": 0.0, "max": 360.0}}
         self._slice_pos =    { "x": 0, "y": 0, "z": 0, "r": 0, "r_x": 0, "r_y": 0, "r_a": 0  }
 
-        self.show_cut_views = {"x": False,
-                               "y": False,
-                               "z": False,
-                               "r": False }
+        self.show_cut_views = {"yz": False,
+                               "xz": False,
+                               "xy": False }
         
         # self.threshold_changed.connect(self.on_threshold_changed)
         
@@ -70,6 +70,7 @@ class Model(QObject):
         self.mesh_threshed.SetInValue(1) # Set the value for inside the threshold
         self.mesh_threshed.ReplaceOutOn() # Set the operation to replace out values
         self.mesh_threshed.SetOutValue(0) # Set the value for outside the threshold
+        
         
         self.mesh_scale = (1, 1, 1)
         self.mesh_origin = (0, 0, 0)
@@ -115,9 +116,9 @@ class Model(QObject):
                             "r": max(round((xmax-xmin)/2), round((ymax-ymin)/2)) / 2,
                             "r_x": round(reader.GetOutput().GetCenter()[0] * 2) / 2,
                             "r_y": round(reader.GetOutput().GetCenter()[1] * 2) / 2,
-                            "r_a": 0.0}
+                            "r_a": 0.0 }
         
-        self.threshold_bounds = { "min": 0, "max": 3000}
+        self.threshold_bounds = { "min": 0, "max": 3000 }
         self.knotdata = KnotData(filename)
         
         self.mesh = reader # set new mesh here to trigger also setting new bounds
