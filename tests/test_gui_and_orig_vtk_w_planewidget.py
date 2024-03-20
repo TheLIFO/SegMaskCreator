@@ -37,43 +37,38 @@ class MyMainWindow(QtWidgets.QMainWindow):
         
         self.center = [0,0,0]
         
+         # shift mesh to origin  TODO does not work with imageDataa since this always has to be aligned to axes which could be corrupted by vtkTransform !!
+        
+        self.mesh = self.reader
+
+
+                # An outline is shown for context.
+        outline = vtk.vtkOutlineFilter()
+        outline.SetInputData(self.mesh.GetOutput())
+
+        outlineMapper = vtk.vtkPolyDataMapper()
+        outlineMapper.SetInputConnection(outline.GetOutputPort())
+
+        self.outlineActor = vtk.vtkActor()
+        self.outlineActor.SetMapper(outlineMapper)
+        
         self.thresholdVal = 900
         self.threshed = vtk.vtkImageThreshold()
-        self.threshed.SetInputConnection(self.reader.GetOutputPort()) # Set your input vtkImageData
+        self.threshed.SetInputConnection(self.mesh.GetOutputPort()) # Set your input vtkImageData
         self.threshed.ThresholdByUpper(self.thresholdVal) # Set the threshold value
         self.threshed.ReplaceInOn() # Set the operation to replace in values
         self.threshed.SetInValue(1) # Set the value for inside the threshold
         self.threshed.ReplaceOutOn() # Set the operation to replace out values
         self.threshed.SetOutValue(0) # Set the value for outside the threshold
-        # self.threshed.Update()
-  
-        # self.threshold = vtk.vtkImageThreshold()
-        # self.threshold.SetInputConnection(self.reader.GetOutputPort()) # Set your input vtkImageData
-        # self.threshold.ThresholdByUpper(500) # Set the threshold value
-        # self.threshold.ReplaceInOn() # Set the operation to replace in values
-        # self.threshold.SetInValue(1) # Set the value for inside the threshold
-        # self.threshold.ReplaceOutOn() # Set the operation to replace out values
-        # self.threshold.SetOutValue(0) # Set the value for outside the threshold
-        # self.threshold.Update()
-
-        # self.combined = vtk.vtkImageBlend()
-        # # self.combined.AddInputConnection(self.mesh.GetOutputPort())                 
-        # self.combined.AddInputConnection(self.threshold.GetOutputPort()) 
-        # self.combined.SetOpacity(0, 0.5)
-        # self.combined.SetOpacity(1, 1)
-        # self.combined.Update()
         
+        # slice image
         
         scalarBar = vtk.vtkScalarBarActor()
         scalarBar.SetLookupTable(self.get_my_table())
         scalarBar.SetTitle("Title")
         scalarBar.SetNumberOfLabels(5)
         
-        # self.reslicer, self.actor, self.mapToColors = self.extract_slice(self.combined)
-        # self.reslicer, self.actor, self.mapToColors = self.extract_slice(self.threshold)
-        # self.reslicer, self.actor, self.mapper = self.extract_slice(self.reader, self.get_my_table())
-        # self.reslicerThreshed, self.actorThreshed, self.mapperThreshed = self.extract_slice(self.threshed, self.get_my_table_threshed())
-
+       
         self.ren3D = vtk.vtkRenderer()
         self.vtkWidget3D = QVTKRenderWindowInteractor(self)
         self.vtkWidget3D.GetRenderWindow().AddRenderer(self.ren3D)
@@ -84,22 +79,20 @@ class MyMainWindow(QtWidgets.QMainWindow):
         self.planeWidget.SetResliceInterpolateToCubic()   
         self.planeWidget.SetMarginSizeX(0)
         self.planeWidget.SetMarginSizeY(0)
+        self.planeWidget.SetLookupTable(self.get_my_table())
+        
         self.planeWidget.AddObserver('InteractionEvent', self.on_clip_plane_changed)
-        self.planeWidget.SetCurrentRenderer(self.ren3D)
-        self.planeWidget.TextureVisibilityOn()
-        # self.planeWidget.GetTexturePlaneProperty().SetColor(1,0,0)
-        # self.planeWidget.GetTexturePlaneProperty().SetOpacity(1)
-        # self.planeWidget.GetTexturePlaneProperty().SetColor(colors.GetColor3d("Green"))
-        
-        
-        # prop = self.planeWidget.GetPlaneProperty()
-        # prop.SetOpacity(0.2)
-        # prop.SetColor(colors.GetColor3d("Green"))  
-        # self.planeWidget.SetPlaneProperty(prop)
+        # self.planeWidget.SetCurrentRenderer(self.ren3D)
+        # self.planeWidget.TextureVisibilityOn()
+        self.planeWidget.On()
+        prop3 = self.planeWidget.GetPlaneProperty()
+        prop3.SetColor(0, 0, 1)
+        self.planeWidget.DisplayTextOn()
         
         
         self.reslicer = self.planeWidget.GetReslice()
         self.reslicer.SetOutputSpacing(.5,.5,.5)
+        
         
         mapper = vtk.vtkImageMapToColors()
         mapper.SetInputConnection(self.reslicer.GetOutputPort())  # Set the input as the extracted slice from vtkImageReslice
@@ -134,7 +127,7 @@ class MyMainWindow(QtWidgets.QMainWindow):
         self.actorThreshed.GetMapper().SetInputConnection(self.mapperThreshed.GetOutputPort())
                 
         
-        # self.reslicerThreshed, self.actorThreshed, self.mapperThreshed = self.extract_slice(self.threshed, self.get_my_table_threshed())
+        
         
         """
         # reslicer shape cylinder:
@@ -189,7 +182,7 @@ class MyMainWindow(QtWidgets.QMainWindow):
         self.actor_cyl.GetMapper().SetInputConnection(mapper.GetOutputPort())
         
         """
-        # Display the images
+     
         
         self.ren = vtk.vtkRenderer()
         camera = vtk.vtkCamera()
@@ -202,33 +195,33 @@ class MyMainWindow(QtWidgets.QMainWindow):
         
         self.actorAssembly = vtk.vtkAssembly()
         self.actorAssembly.AddPart(self.actorThreshed)
-        self.actorAssembly.AddPart(self.actor)
+        self.actorAssembly.AddPart(self.actor)       
         
        
         self.ren.AddActor(self.actorAssembly)
         self.ren.AddActor2D(scalarBar)
         self.ren.AddActor(sphereactor)
+        
+        self.ren.SetBackground(colors.GetColor3d("Wheat"))
         # self.ren.AddActor(self.actor_cyl)
         
-        axisActorX = vtk.vtkAxisActor2D()
-        axisActorX.SetPoint1(-10, 250)
-        axisActorX.SetPoint2(-10, 250)
-        axisActorX.GetTitleTextProperty().SetColor(colors.GetColor3d("banana"))
-        axisActorX.SetTitle("X-Axis")
-        axisActorX.SetNumberOfLabels(5)
-        axisActorX.AxisVisibilityOn()
-        axisActorX.LabelVisibilityOn()
-        axisActorX.TickVisibilityOn()
-        axisActorX.TitleVisibilityOn()
-        self.ren.AddActor2D(axisActorX) 
+        """
+        self.axisActorY = vtk.vtkAxisActor()
+        self.axisActorY.SetPoint1(-10, self.yMin, 0)
+        self.axisActorY.SetPoint2(-10, self.yMax, 0)
+        self.axisActorY.GetTitleTextProperty().SetColor(colors.GetColor3d("banana"))
+        self.axisActorY.SetTitle("X-Axis")
+        # self.axisActorY.SetNumberOfLabels(5)
+        self.axisActorY.AxisVisibilityOn()
+        # self.axisActorX.LabelVisibilityOn()
+        # self.axisActorX.TickVisibilityOn()
+        # self.axisActorX.TitleVisibilityOn()
+        self.ren.AddActor(self.axisActorY) 
+        """
+
+        self.axisActorX = vtk.vtkAxisActor()
         
-        axisActorY = vtk.vtkAxisActor2D()
-        axisActorY.SetPoint1(0, -10)
-        axisActorY.SetPoint2(250, -10)
-        axisActorY.SetTitle("Y-Axis")
-        axisActorY.SetNumberOfLabels(5)
-        axisActorY.AxisVisibilityOn()
-        self.ren.AddActor2D(axisActorY) 
+        self.ren.AddActor(self.axisActorX) 
         
         
         
@@ -244,7 +237,7 @@ class MyMainWindow(QtWidgets.QMainWindow):
         
         
     
-        
+        # 3D overview
 
 
         # Create transfer mapping scalar value to opacity.
@@ -303,9 +296,25 @@ class MyMainWindow(QtWidgets.QMainWindow):
         volumeThreshed.SetMapper(volumeThreshedMapper)
         volumeThreshed.SetProperty(volumeThreshedProperty)
 
-        self.ren3D.AddVolume(volume)
+        axes = vtk.vtkAxesActor()
+
+        self.axes_widget = vtk.vtkOrientationMarkerWidget()
+        rgba = [0] * 4
+        colors.GetColor('Carrot', rgba)
+        self.axes_widget.SetOutlineColor(rgba[0], rgba[1], rgba[2])
+        self.axes_widget.SetOrientationMarker(axes)
+        self.axes_widget.SetInteractor(self.iren3D)
+        self.axes_widget.SetViewport(0.0, 0.0, 0.4, 0.4)
+        self.axes_widget.SetEnabled(1)
+        self.axes_widget.SetInteractive(False)
+        # self.axes_widget.InteractiveOn()
+
+
+        # self.ren3D.AddVolume(volume)
         self.ren3D.AddVolume(volumeThreshed)
+        self.ren3D.AddActor(self.outlineActor)
         self.ren3D.SetBackground(colors.GetColor3d('Wheat'))
+        
         self.ren3D.GetActiveCamera().Azimuth(45)
         self.ren3D.GetActiveCamera().Elevation(30)
         
@@ -447,42 +456,6 @@ class MyMainWindow(QtWidgets.QMainWindow):
         lut.Build()
         return lut
         
-    def extract_slice(self, input, lut_table):
-
-        # Extract a slice in the desired orientation
-        reslice = vtk.vtkImageReslice()
-        reslice.SetInputConnection(input.GetOutputPort())
-        reslice.SetOutputDimensionality(2)
-        sagittal = vtk.vtkMatrix4x4()
-        sagittal.DeepCopy((1, 0, 0, self.center[0],
-                           0, 1, 0, self.center[1],
-                           0, 0, 1, self.center[2],
-                           0, 0, 0, 1))
-        
-        # sagittal.DeepCopy((1, 0, 0, self.center[0],
-        #                    0, 0, 1, self.center[1],
-        #                    0, 1, 0, self.center[2],
-        #                    0, 0, 0, 1))
-        
-        reslice.SetResliceAxes(sagittal)
-        reslice.SetInterpolationModeToLinear()
-        
-
-        # Update the vtkImageReslice
-        # reslice.Update()
-
-        # Create an instance of vtkImageMapToColors
-        mapToColors = vtk.vtkImageMapToColors()
-        mapToColors.SetInputConnection(reslice.GetOutputPort())  # Set the input as the extracted slice from vtkImageReslice
-        mapToColors.SetLookupTable(lut_table)
-        # mapToColors.Update() # Update the vtkImageMapToColors
-
-        actor = vtk.vtkImageActor()
-        actor.GetMapper().SetInputConnection(mapToColors.GetOutputPort())
-        
-        
-        
-        return reslice, actor, mapToColors
 
     
 
@@ -531,9 +504,9 @@ class MyMainWindow(QtWidgets.QMainWindow):
         
         
         # translate coordinates into array indices
-        x = round(coord[0]/self.xSpacing)
-        y = round(coord[1]/self.ySpacing)
-        z = round(coord[2]/self.zSpacing)
+        x = round((coord[0]-self.x0)/self.xSpacing)
+        y = round((coord[1]-self.y0)/self.ySpacing)
+        z = round((coord[2]-self.z0)/self.zSpacing)
         
         if (x < self.xMin) or (x > self.xMax) or (y < self.yMin) or (y > self.yMax) or (z < self.zMin) or (z > self.zMax):            
             value = 0
@@ -555,7 +528,7 @@ class MyMainWindow(QtWidgets.QMainWindow):
             # sphere.SetRadius(sphere.GetRadius()+deltaY)
             
             # print ("slice...", deltaY)
-            sliceSpacing = self.reslicer.GetOutput().GetSpacing()[2]
+            # sliceSpacing = self.reslicer.GetOutput().GetSpacing()[2]
             
           
             position = self.planeWidget.GetSlicePosition()
@@ -578,17 +551,30 @@ class MyMainWindow(QtWidgets.QMainWindow):
         self.ren3D.ResetCamera()
         self.iren3D.Start()
         
+        # todo check if also ok
         self.planeWidget.SetInputConnection(self.reader.GetOutputPort())
+        # self.planeWidget.SetInputData(self.reader.GetOutput())
         # self.planeWidget.SetPlaneOrientationToZAxes()
         self.planeWidget.SetPlaneOrientationToYAxes()
-        (self.xMin, self.xMax, self.yMin, self.yMax, self.zMin, self.zMax) = self.reader.GetExecutive().GetWholeExtent(self.reader.GetOutputInformation(0))
-        (self.xSpacing, self.ySpacing, self.zSpacing) = self.reader.GetOutput().GetSpacing()
+        self.planeWidget.TextureVisibilityOn()
+        # (self.xMin, self.xMax, self.yMin, self.yMax, self.zMin, self.zMax) = self.reader.GetExecutive().GetWholeExtent(self.reader.GetOutputInformation(0))
+        # (self.xSpacing, self.ySpacing, self.zSpacing) = self.reader.GetOutput().GetSpacing()
         
-        self.planeWidget.PlaceWidget(self.xMin*self.xSpacing, self.xMax*self.xSpacing, self.yMin*self.ySpacing, self.yMax*self.ySpacing, self.zMin*self.zSpacing, self.zMax*self.zSpacing)
+        self.planeWidget.PlaceWidget(self.xMin*self.xSpacing+self.x0, self.xMax*self.xSpacing+self.x0, self.yMin*self.ySpacing+self.y0, self.yMax*self.ySpacing+self.y0, self.zMin*self.zSpacing+self.z0, self.zMax*self.zSpacing+self.z0)
         
+        self.reslicer.Update()
+        self.reslicer_threshed.Update()
+        self.reslicer_threshed.SetOutputOrigin(self.reslicer.GetOutputOrigin())
+        self.reslicer_threshed.SetResliceAxes(self.reslicer.GetResliceAxes())
 
         self.iren3D.Render()
+        self.iren3D.Render()
         
+        
+        self.axisActorX.SetPoint1(0, -10, 0)
+        self.axisActorX.SetPoint2(800, -10, 0)
+        self.axisActorX.SetAxisTypeToX()
+
         self.ren.ResetCamera()
         self.ren.ResetCameraClippingRange()        
         self.iren.Start()
@@ -603,12 +589,15 @@ class MyMainWindow(QtWidgets.QMainWindow):
         # caller.GetReslice().UpdatePlacement()
         # caller.GetReslice().UpdatePlane()
         # caller.UpdatePlane()
+
+
+        
         self.reslicer.Update()
-        # self.reslicer_threshed.SetOutputOrigin(self.reslicer.GetOutputOrigin())
-        # self.reslicer_threshed.SetResliceAxes(self.reslicer.GetResliceAxes())
+        self.reslicer_threshed.Update()
+        self.reslicer_threshed.SetOutputOrigin(self.reslicer.GetOutputOrigin())
+        self.reslicer_threshed.SetResliceAxes(self.reslicer.GetResliceAxes())
         self.iren.Render()
-        
-        
+        self.iren3D.Render()
         
         
         print("new origin for plane...ok")   
@@ -616,6 +605,7 @@ class MyMainWindow(QtWidgets.QMainWindow):
     def load_data(self):
         # Start by loading some data.
         filename = "data\Drydisk07.6.nrrd"
+        filename = 'J:/Wn/z6_CT/1866_WAI_KnotCT/CTRegistratorData/FVA_Data/Disks/Tree 7697/Prep/Dry/Disk7697.Q24.nrrd'
         self.reader.SetFileName(filename)
         self.reader.Update()
 

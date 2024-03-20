@@ -24,10 +24,10 @@ class Model(QObject):
         super().__init__()
         
         self._knotdata = None    
-        self._mesh = None
-        self.mesh_threshed = None
-        self.mesh_actor = None
+        self.mesh = vtk.vtkNrrdReader()
+        self.mesh_threshed = vtk.vtkImageThreshold()
         
+        self.reader = vtk.vtkNrrdReader()
         
         self.mesh_scale = None
         self._threshold = 0  
@@ -57,24 +57,16 @@ class Model(QObject):
     def load_imagedata(self, filename):
         print ("loading file:", filename)
                       
-        reader = vtk.vtkNrrdReader()
-        reader.SetFileName(filename)
-        # reader.show_progress()
-        reader.Update()
         
-        self.threshold_val = 900
-        self.mesh_threshed = vtk.vtkImageThreshold()
-        self.mesh_threshed.SetInputConnection(reader.GetOutputPort()) # Set your input vtkImageData
-        self.mesh_threshed.ThresholdByUpper(self.threshold_val) # Set the threshold value
-        self.mesh_threshed.ReplaceInOn() # Set the operation to replace in values
-        self.mesh_threshed.SetInValue(1) # Set the value for inside the threshold
-        self.mesh_threshed.ReplaceOutOn() # Set the operation to replace out values
-        self.mesh_threshed.SetOutValue(0) # Set the value for outside the threshold
+        self.mesh.SetFileName(filename)
         
+        self.mesh.Update()
         
+       
+        
+        # set default values
+        self.mesh_origin = (0, 0, 0)        
         self.mesh_scale = (1, 1, 1)
-        self.mesh_origin = (0, 0, 0)
-        
         
         header = nrrd.read_header(filename)
         try:
@@ -84,44 +76,47 @@ class Model(QObject):
         except:
             pass
         
-        
-        transform = vtk.vtkTransform()
-        transform.Translate(self.mesh_origin)
-        transformModel = vtk.vtkTransformFilter()
-        transformModel.SetTransform(transform)
-        transformModel.SetInputConnection(reader.GetOutputPort())
+        # TODO compare to test_gui_and_orig_vtk_w_planewidget.py
+        # spacing, origin from different tags ????
+        # calculation for placing widget wrong ?????
        
         
+        self.threshold_val = 900        
+        self.mesh_threshed.SetInputConnection(self.mesh.GetOutputPort()) # Set your input vtkImageData
+        self.mesh_threshed.ThresholdByUpper(self.threshold_val) # Set the threshold value
+        self.mesh_threshed.ReplaceInOn() # Set the operation to replace in values
+        self.mesh_threshed.SetInValue(1) # Set the value for inside the threshold
+        self.mesh_threshed.ReplaceOutOn() # Set the operation to replace out values
+        self.mesh_threshed.SetOutValue(0) # Set the value for outside the threshold
         
-        # mesh = transform().GetOutput()
-        # mesh = mesh.scale(self.mesh_scale)
+        
         # obtain new bounds
-        xmin, xmax, ymin, ymax, zmin, zmax = reader.GetOutput().GetBounds() 
-        xmin = round(xmin * 2) / 2
-        xmax = round(xmax * 2) / 2
-        ymin = round(ymin * 2) / 2
-        ymax = round(ymax * 2) / 2
-        zmin = round(zmin * 2) / 2
-        zmax = round(zmax * 2) / 2
+        xmin, xmax, ymin, ymax, zmin, zmax = self.mesh.GetOutput().GetBounds() 
+        xmin = round(xmin * self.mesh_scale[0]) / self.mesh_scale[0]
+        xmax = round(xmax * self.mesh_scale[0]) / self.mesh_scale[0]
+        ymin = round(ymin * self.mesh_scale[1]) / self.mesh_scale[1]
+        ymax = round(ymax * self.mesh_scale[1]) / self.mesh_scale[1]
+        zmin = round(zmin * self.mesh_scale[2]) / self.mesh_scale[2]
+        zmax = round(zmax * self.mesh_scale[2]) / self.mesh_scale[2]
         self.slice_bounds = {   "x": {"min": xmin, "max": xmax},
                                 "y": {"min": ymin, "max": ymax},
                                 "z": {"min": zmin, "max": zmax},
-                                "r": {"min": 0, "max": max(round((xmax-xmin)/2), round((ymax-ymin)/2))},
+                                "r": {"min": 0, "max": max(round((xmax-xmin)/self.mesh_scale[0]), round((ymax-ymin)/self.mesh_scale[1]))},
                                 "r_a": {"min": 0, "max": 360},
                                 "r_x": {"min": xmin, "max": xmax},
                                 "r_y": {"min": ymin, "max": ymax} }
-        self.slice_pos = {  "x": round(reader.GetOutput().GetCenter()[0] * 2) / 2,
-                            "y": round(reader.GetOutput().GetCenter()[1] * 2) / 2,
-                            "z": round(reader.GetOutput().GetCenter()[2] * 2) / 2, 
-                            "r": max(round((xmax-xmin)/2), round((ymax-ymin)/2)) / 2,
-                            "r_x": round(reader.GetOutput().GetCenter()[0] * 2) / 2,
-                            "r_y": round(reader.GetOutput().GetCenter()[1] * 2) / 2,
+        self.slice_pos = {  "x": round(self.mesh.GetOutput().GetCenter()[0] * self.mesh_scale[0]) / self.mesh_scale[0],
+                            "y": round(self.mesh.GetOutput().GetCenter()[1] * self.mesh_scale[1]) / self.mesh_scale[1],
+                            "z": round(self.mesh.GetOutput().GetCenter()[2] * self.mesh_scale[2]) / self.mesh_scale[2], 
+                            "r": max(round((xmax-xmin)/2), round((ymax-ymin) / self.mesh_scale[0])) / self.mesh_scale[0],
+                            "r_x": round(self.mesh.GetOutput().GetCenter()[0] * self.mesh_scale[0]) / self.mesh_scale[0],
+                            "r_y": round(self.mesh.GetOutput().GetCenter()[1] * self.mesh_scale[1]) / self.mesh_scale[1],
                             "r_a": 0.0 }
         
         self.threshold_bounds = { "min": 0, "max": 3000 }
         self.knotdata = KnotData(filename)
         
-        self.mesh = reader # set new mesh here to trigger also setting new bounds
+        self.mesh = self.reader # set new mesh here to trigger also setting new bounds
         
    
     @property

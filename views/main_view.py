@@ -121,7 +121,7 @@ class MainView(QtWidgets.QMainWindow):
         self.ui_view.checkBox_show_x.stateChanged.connect(self.show_cut_views_changed)
         self.ui_view.checkBox_show_y.stateChanged.connect(self.show_cut_views_changed)
         self.ui_view.checkBox_show_z.stateChanged.connect(self.show_cut_views_changed)
-        self.ui_view.checkBox_show_r.stateChanged.connect(self.show_cut_views_changed)
+        
         
         # listen to changing mesh to change bounds of slider         
         self._model.slice_bounds_changed.connect(self.on_slice_bounds_changed)
@@ -271,10 +271,9 @@ class MainView(QtWidgets.QMainWindow):
 
     
     def show_cut_views_changed(self):
-        self._model.show_cut_views = {  "x": self.ui_view.checkBox_show_x.isChecked(),
-                                        "y": self.ui_view.checkBox_show_y.isChecked(),
-                                        "z": self.ui_view.checkBox_show_z.isChecked(),
-                                        "r": self.ui_view.checkBox_show_r.isChecked() }
+        self._model.show_cut_views = {  "yz": self.ui_view.checkBox_show_x.isChecked(),
+                                        "xz": self.ui_view.checkBox_show_y.isChecked(),
+                                        "xy": self.ui_view.checkBox_show_z.isChecked() }
         
     
     

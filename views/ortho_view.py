@@ -1,6 +1,4 @@
-import sys
-import random
-
+import pretty_errors
 from PyQt5 import QtWidgets
 from PyQt5.QtCore import Qt, QObject, pyqtSlot
 
@@ -13,12 +11,14 @@ from datetime import datetime
 from views.lut import Luts
 
 # this class contains the viewFrame depicting the loaded CT image in 3D
-class OrthoViewProjection():
-    def __init__(self, name, parent, origin, normal, overview_iren, overview_ren):
+class OrthoViewSlice():
+    def __init__(self, model, name, parent, origin, normal, overview_iren, overview_ren):
         
             
         self.name = name
         self.normal = normal
+        self._model = model        
+        
         
         self.planeWidget = vtk.vtkImagePlaneWidget()        
         self.planeWidget.SetResliceInterpolateToCubic()   
@@ -35,9 +35,7 @@ class OrthoViewProjection():
         self.ren.SetActiveCamera(camera)
         self.vtkWidget = QVTKRenderWindowInteractor(parent)
         self.vtkWidget.GetRenderWindow().AddRenderer(self.ren)
-        self.iren = self.vtkWidget.GetRenderWindow().GetInteractor()
-              
-        
+        self.iren = self.vtkWidget.GetRenderWindow().GetInteractor()    
         
         
         # this is a cursor of sort
@@ -61,39 +59,46 @@ class OrthoViewProjection():
     def get_widget(self):
         return self.vtkWidget 
 
-    def set_input(self, inputs):
+    def set_input(self, inputs, luts):
         self.inputs = inputs
-        self.threshed.ThresholdByUpper(self.thresholdVal) # Set the threshold value
-        self.threshed.Update()
-        (self.xMin, self.xMax, self.yMin, self.yMax, self.zMin, self.zMax) = self.reader.GetExecutive().GetWholeExtent(self.reader.GetOutputInformation(0))
-        (self.xSpacing, self.ySpacing, self.zSpacing) = self.reader.GetOutput().GetSpacing()
         
+        self.inputs[1].Update()
         
+        # resize 'mapper', 'self.actor' and 'self.reslicer' to fit len(inputs)
+        self.mapper = [None] * len(inputs)
+        self.reslicer = [None] * len(inputs)
+        self.actor = [None] * len(inputs)
+        
+                
         for idx in range(len(inputs)):
             if idx == 0:                
                 self.reslicer[idx] = self.planeWidget.GetReslice()        
-                self.reslicer[idx].SetOutputSpacing(inputs[idx].GetOutputPort().GetOutputSpacing())
+                self.reslicer[idx].SetOutputSpacing (self._model.mesh_scale)
             else:
+                # several additional reslicers (starting with e.g. threshed image)
                 self.reslicer[idx] = vtk.vtkImageReslice()            
-                self.reslicer[idx].SetOutputSpacing(self.reslicer[0].GetOutputSpacing())
-                self.reslicer[idx].SetOutputOrigin(self.reslicer[0].GetOutputOrigin())
-                self.reslicer[idx].SetResliceAxes(self.reslicer[0].GetResliceAxes())
+                self.reslicer[idx].SetOutputSpacing  (self.reslicer[0].GetOutputSpacing()) # setting the same reslicer properties as the first on
+                self.reslicer[idx].SetOutputOrigin   (self.reslicer[0].GetOutputOrigin())
+                self.reslicer[idx].SetResliceAxes    (self.reslicer[0].GetResliceAxes())
                 self.reslicer[idx].SetInputConnection(inputs[idx].GetOutputPort())
                 
             
             # Create an instance of vtkImageMapToColors
-            mapper[idx] = vtk.vtkImageMapToColors()
-            mapper[idx].SetInputConnection(self.reslicer[idx].GetOutputPort())  # Set the input as the extracted slice from vtkImageReslice
-            mapper[idx].SetLookupTable(luts[idx])
+            self.mapper[idx] = vtk.vtkImageMapToColors()
+            self.mapper[idx].SetInputConnection(self.reslicer[idx].GetOutputPort())  # Set the input as the extracted slice from vtkImageReslice
+            self.mapper[idx].SetLookupTable(luts[idx])
             
             self.actor[idx] = vtk.vtkImageActor()
-            self.ren.AddActor(self.actor[idx], self.name+str(idx))
-            self.actor[idx].GetMapper().SetInputConnection(mapper[idx].GetOutputPort())
+            self.actor[idx].GetMapper().SetInputConnection(self.mapper[idx].GetOutputPort())
+            self.ren.AddActor(self.actor[idx])
             
         
         self.planeWidget.On()
-        self.planeWidget.SetInputConnection(self.input[0].GetOutputPort())
-        self.planeWidget.PlaceWidget(self.xMin*self.xSpacing, self.xMax*self.xSpacing, self.yMin*self.ySpacing, self.yMax*self.ySpacing, self.zMin*self.zSpacing, self.zMax*self.zSpacing)
+        self.planeWidget.SetInputData(self.inputs[0].GetOutput())
+        self.planeWidget.PlaceWidget(self._model.slice_bounds['x']['min'] * self._model.mesh_scale[0], self._model.slice_bounds['x']['max'] * self._model.mesh_scale[0], 
+                                     self._model.slice_bounds['y']['min'] * self._model.mesh_scale[1], self._model.slice_bounds['y']['max'] * self._model.mesh_scale[1],
+                                     self._model.slice_bounds['z']['min'] * self._model.mesh_scale[2], self._model.slice_bounds['z']['max'] * self._model.mesh_scale[2])
+        self.reslicer[0].Update()
         self.ren.ResetCamera() 
         
         self.ren.ResetCameraClippingRange()        
@@ -106,7 +111,7 @@ class OrthoViewProjection():
     
     def update(self):
         self.iren.Render()        
-        self.iren3D.Render() # TODO link to orthooverview
+        # self.iren3D.Render() # TODO link to orthooverview emit signal when orthoview is updated??
     
     def mouseMoveCallback(self, obj, event):
         
@@ -127,20 +132,21 @@ class OrthoViewProjection():
         pixel = [coord[0], coord[1]]
         resliceAxes = self.reslicer.GetResliceAxes()
         coord = resliceAxes.MultiplyDoublePoint([pixel[0]+origin[0], pixel[1]+origin[1], origin[2], 1])
-        (xMin, xMax, yMin, yMax, zMin, zMax) = self.input.GetExecutive().GetWholeExtent(self.reader.GetOutputInformation(0))
-        (xSpacing, ySpacing, zSpacing) = self.input.GetOutput().GetSpacing()
-        # (x0, y0, z0) = self.input.GetOutput().GetOrigin()
+        
+        
         
         # translate coordinates into array indices
-        x = round(coord[0]/xSpacing)
-        y = round(coord[1]/ySpacing)
-        z = round(coord[2]/zSpacing)
+        x = round(coord[0]/self._model.mesh_scale[0])
+        y = round(coord[1]/self._model.mesh_scale[1])
+        z = round(coord[2]/self._model.mesh_scale[2])
         
-        if (x < xMin) or (x > xMax) or (y < yMin) or (y > yMax) or (z < zMin) or (z > zMax):            
+        if  (x < self._model.slice_bounds['x'].min) or (x > self._model.slice_bounds['x'].max) or \
+            (y < self._model.slice_bounds['y'].min) or (y > self._model.slice_bounds['y'].max) or \
+            (z < self._model.slice_bounds['z'].min) or (z > self._model.slice_bounds['z'].max):            
             value = 0
             value_threshed = 0
         else:
-            value          = self.reader.GetOutput().GetScalarComponentAsDouble(x, y, z, 0)
+            value          = self.mesh.GetOutput().GetScalarComponentAsDouble(x, y, z, 0)
             value_threshed = self.threshed.GetOutput().GetScalarComponentAsDouble(x, y, z, 0)
                 
         print("x mouse: ", mouseX, " y mouse: ", mouseY, "world-x: ",coord[0], " world-y: ", coord[1],"world-z: ", coord[2],"   Scalar: ", value, "threshed: ", value_threshed)
@@ -163,16 +169,121 @@ class OrthoViewProjection():
         self.update()
      
     
-class OrthoOverview():   
-    def __init__(self, name = "", parent = None):
+class OrthoViewOverview():   
+      
+    def __init__(self, model, name, parent):
+        
+            
         self.name = name        
+        self._model = model   
         
         self.ren = vtk.vtkRenderer()
         self.vtkWidget = QVTKRenderWindowInteractor(parent)
         self.vtkWidget.GetRenderWindow().AddRenderer(self.ren)
         self.iren = self.vtkWidget.GetRenderWindow().GetInteractor()
-    
+        
+        colors = vtk.vtkNamedColors()
+        
+        
+        #create outline of 3D view
+        outline = vtk.vtkOutlineFilter()
+        outline.SetInputData(self._model.mesh.GetOutput())
 
+        outlineMapper = vtk.vtkPolyDataMapper()
+        outlineMapper.SetInputConnection(outline.GetOutputPort())
+
+        self.outlineActor = vtk.vtkActor()
+        self.outlineActor.SetMapper(outlineMapper)
+        
+        # Create transfer mapping scalar value to opacity.
+        opacityTransferFunction = vtk.vtkPiecewiseFunction()
+        opacityTransferFunction.AddPoint(0, 0.0)
+        opacityTransferFunction.AddPoint(450, 0.0)
+        opacityTransferFunction.AddPoint(451, 0.2)
+        
+        opacityThreshedTransferFunction = vtk.vtkPiecewiseFunction()
+        opacityThreshedTransferFunction.AddPoint(0, 0)
+        opacityThreshedTransferFunction.AddPoint(1, 1)
+        opacityThreshedTransferFunction.AddPoint(2500, 1)
+        
+        # Create transfer mapping scalar value to color.
+        colorTransferFunction = vtk.vtkColorTransferFunction()
+        colorTransferFunction.AddRGBPoint(0.0, 0.0, 0.0, 0.0)
+        colorTransferFunction.AddRGBPoint(255.0, 1.0, 1.0, 1.0)
+
+        colorThreshedTransferFunction = vtk.vtkColorTransferFunction()
+        colorThreshedTransferFunction.AddRGBPoint(0.0, 1.0, 0.0, 0.0)
+        colorThreshedTransferFunction.AddRGBPoint(255.0, 1.0, 0.0, 0.0)
+        
+        # The property describes how the data will look.
+        volumeProperty = vtk.vtkVolumeProperty()
+        volumeProperty.SetColor(colorTransferFunction)
+        volumeProperty.SetScalarOpacity(opacityTransferFunction)
+        volumeProperty.ShadeOn()
+        volumeProperty.SetInterpolationTypeToLinear()
+
+        # The property describes how the data will look.
+        volumeThreshedProperty = vtk.vtkVolumeProperty()
+        volumeThreshedProperty.SetColor(colorThreshedTransferFunction)
+        volumeThreshedProperty.SetScalarOpacity(opacityThreshedTransferFunction)
+        volumeThreshedProperty.ShadeOn()
+        volumeThreshedProperty.SetInterpolationTypeToLinear()
+
+
+        # The mapper / ray cast function know how to render the data.
+        volumeMapper = vtk.vtkFixedPointVolumeRayCastMapper()
+        volumeMapper.SetInputConnection(self._model.mesh.GetOutputPort())
+        
+        # The volume holds the mapper and the property and
+        # can be used to position/orient the volume.
+        volume = vtk.vtkVolume()
+        volume.SetMapper(volumeMapper)
+        volume.SetProperty(volumeProperty)
+
+            # The mapper / ray cast function know how to render the data.
+        volumeThreshedMapper = vtk.vtkFixedPointVolumeRayCastMapper()
+        volumeThreshedMapper.SetInputConnection(self._model.mesh_threshed.GetOutputPort())
+
+      
+        # The volume holds the mapper and the property and
+        # can be used to position/orient the volume.
+        volumeThreshed = vtk.vtkVolume()
+        volumeThreshed.SetMapper(volumeThreshedMapper)
+        volumeThreshed.SetProperty(volumeThreshedProperty)
+
+        self.ren.AddVolume(volume)
+        self.ren.AddVolume(volumeThreshed)
+        self.ren.AddActor(self.outlineActor)
+        self.ren.SetBackground(colors.GetColor3d('Wheat'))
+        self.ren.GetActiveCamera().Azimuth(45)
+        self.ren.GetActiveCamera().Elevation(30)
+        
+                    
+        self.interactorStyle3D = vtk.vtkInteractorStyleTrackballCamera()
+        self.iren.SetInteractorStyle(self.interactorStyle3D)
+    
+    def get_widget(self):
+        return self.vtkWidget 
+
+    def set_input(self, inputs):
+        self.inputs = inputs
+        
+        self.inputs[1].Update()
+        
+        # resize 'mapper', 'self.actor' and 'self.reslicer' to fit len(inputs)
+        mapper = [None] * len(inputs)
+      
+        self.actor = [None] * len(inputs)
+        
+        self.ren.ResetCamera() 
+        self._model.mesh_threshed.Update()
+        
+        self.ren.ResetCameraClippingRange()        
+        self.iren.Start()
+        self.update()
+        
+    def update(self):
+        self.iren.Render()
     
     
 class OrthoView(QtWidgets.QWidget):
@@ -182,11 +293,11 @@ class OrthoView(QtWidgets.QWidget):
         self._model = model
         
         self.ortho_views = {}
-        self.ortho_overview = OrthoOverview("OrthoOverview", self)
+        self.ortho_overview = OrthoViewOverview(self._model, "OrthoOverview", self)
         
-        self.ortho_views['XY'] = OrthoViewProjection('XY', self, [0,0,0], [0,0,1], [self._model.mesh, self._model.mesh_threshed], [Luts.get_standard_lut(),Luts.get_threshed_lut()], self.ortho_overview.iren, self.ortho_overview.ren)
-        self.ortho_views['XZ'] = OrthoViewProjection('XZ', self, [0,0,0], [0,1,0], [self._model.mesh, self._model.mesh_threshed], [Luts.get_standard_lut(),Luts.get_threshed_lut()], self.ortho_overview.iren, self.ortho_overview.ren)
-        self.ortho_views['YZ'] = OrthoViewProjection('YZ', self, [0,0,0], [1,0,0], [self._model.mesh, self._model.mesh_threshed], [Luts.get_standard_lut(),Luts.get_threshed_lut()], self.ortho_overview.iren, self.ortho_overview.ren)
+        self.ortho_views['xy'] = OrthoViewSlice(self._model, 'xy', self, [0,0,0], [0,0,1], self.ortho_overview.iren, self.ortho_overview.ren)
+        self.ortho_views['xz'] = OrthoViewSlice(self._model, 'xz', self, [0,0,0], [0,1,0], self.ortho_overview.iren, self.ortho_overview.ren)
+        self.ortho_views['yz'] = OrthoViewSlice(self._model, 'yz', self, [0,0,0], [1,0,0], self.ortho_overview.iren, self.ortho_overview.ren)
         
         layout = QtWidgets.QGridLayout()        
         self.setLayout(layout)           
@@ -197,17 +308,17 @@ class OrthoView(QtWidgets.QWidget):
         # widget.setSizePolicy(sp_retain)
         
         self.ortho_overview.get_widget().sizePolicy().setRetainSizeWhenHidden(True)
-        self.ortho_views['YZ'].get_widget().sizePolicy().setRetainSizeWhenHidden(True)
-        self.ortho_views['XZ'].get_widget().sizePolicy().setRetainSizeWhenHidden(True)
-        self.ortho_views['XY'].get_widget().sizePolicy().setRetainSizeWhenHidden(True)
+        self.ortho_views['yz'].get_widget().sizePolicy().setRetainSizeWhenHidden(True)
+        self.ortho_views['xz'].get_widget().sizePolicy().setRetainSizeWhenHidden(True)
+        self.ortho_views['xy'].get_widget().sizePolicy().setRetainSizeWhenHidden(True)
         
         # plotter for overview        
         layout.addWidget(self.ortho_overview.get_widget(), 0, 0)
                 
         # plotter for several cut 2D views
-        layout.addWidget(self.ortho_views['YZ'].get_widget(), 0, 1)
-        layout.addWidget(self.ortho_views['XZ'].get_widget(), 1, 0)
-        layout.addWidget(self.ortho_views['XY'].get_widget(), 1, 1)
+        layout.addWidget(self.ortho_views['yz'].get_widget(), 0, 1)
+        layout.addWidget(self.ortho_views['xz'].get_widget(), 1, 0)
+        layout.addWidget(self.ortho_views['xy'].get_widget(), 1, 1)
         
         # listen to model event signals     
         self._model.mesh_changed.connect(self.on_mesh_changed)
@@ -251,7 +362,7 @@ class OrthoView(QtWidgets.QWidget):
 
     def on_clip_plane_R_changed(self, normal, origin):
         print ("TODO")
-        pass
+        return
         new_origin = [round(a*10)/10 for a in list(origin)]        
         self._model.slice_pos = {   "x": self._model.slice_pos["x"],
                                     "y": self._model.slice_pos["y"],
@@ -263,7 +374,7 @@ class OrthoView(QtWidgets.QWidget):
         
     def on_clip_plane_RC_changed(self, normal, origin):
         print ("TODO")
-        pass
+        return
         new_origin = [round(a*10)/10 for a in list(origin)]        
         self._model.slice_pos = {   "x": self._model.slice_pos["x"],
                                     "y": self._model.slice_pos["y"],
@@ -288,19 +399,21 @@ class OrthoView(QtWidgets.QWidget):
     
     
     def on_slice_bounds_changed(self, slice_bounds):
-
+        pass
+        """
+        # TODO !!!!
         self.clip_plane_widget_X.PlaceWidget(slice_bounds["x"]["min"], slice_bounds["x"]["max"], slice_bounds["y"]["min"], slice_bounds["y"]["max"], slice_bounds["z"]["min"], slice_bounds["z"]["max"])
         self.clip_plane_widget_Y.PlaceWidget(slice_bounds["x"]["min"], slice_bounds["x"]["max"], slice_bounds["y"]["min"], slice_bounds["y"]["max"], slice_bounds["z"]["min"], slice_bounds["z"]["max"])
         self.clip_plane_widget_Z.PlaceWidget(slice_bounds["x"]["min"], slice_bounds["x"]["max"], slice_bounds["y"]["min"], slice_bounds["y"]["max"], slice_bounds["z"]["min"], slice_bounds["z"]["max"])
     
         # TODO
         self.clip_plane_widget_R.PlaceWidget(slice_bounds["x"]["min"], slice_bounds["x"]["max"], slice_bounds["y"]["min"], slice_bounds["y"]["max"], slice_bounds["z"]["min"], slice_bounds["z"]["max"])
-    
+        """
     
     def on_show_cut_views_changed(self, show_cut_views):
-        self.self.ortho_views['YZ'].get_widget().setVisible(show_cut_views["z"])
-        self.plotter_ortho_view_yz.setVisible(show_cut_views["x"])
-        self.plotter_ortho_view_xz.setVisible(show_cut_views["y"])
+        for show_cut_view in show_cut_views:
+            self.ortho_views[show_cut_view].get_widget().setVisible(show_cut_views[show_cut_view])
+        
         
         
         if not self._model.mesh == None:
@@ -351,10 +464,17 @@ class OrthoView(QtWidgets.QWidget):
         if self._model.mesh is None:
             return
         print("update mesh...")
-        self.mesh_actor = self.plotter3D.add_mesh(self._model.mesh, name = "mesh3Doverview", opacity = 0.5, show_scalar_bar = False)
-        self.plotter3D.show_axes_all()
+        
+        
+        self.ortho_views['xy'].set_input([self._model.mesh, self._model.mesh_threshed], [Luts.get_standard_lut(),Luts.get_threshed_lut()])
+        self.ortho_views['xz'].set_input([self._model.mesh, self._model.mesh_threshed], [Luts.get_standard_lut(),Luts.get_threshed_lut()])
+        self.ortho_views['yz'].set_input([self._model.mesh, self._model.mesh_threshed], [Luts.get_standard_lut(),Luts.get_threshed_lut()])
+        
+        """
+        # self.mesh_actor = self.plotter3D.add_mesh(self._model.mesh, name = "mesh3Doverview", opacity = 0.5, show_scalar_bar = False)
+        # self.plotter3D.show_axes_all()
         # self.plotter3D.set_scale(self._model.mesh_scale[0], self._model.mesh_scale[1], self._model.mesh_scale[2], True)
-               
+
         self.reslice_YZ.SetInputData(self._model.mesh.GetOutputPort())
         self.reslice_YZ.SetCutFunction(self.plane_YZ)        
         self.plane_YZ.SetOrigin(self._model.mesh.GetOutput.GetCenter())
@@ -451,7 +571,7 @@ class OrthoView(QtWidgets.QWidget):
         #         flip_range=True,
         #         title="Y Distance",
         #         font_size_factor = font_scale)
-
+        """
 
         self.update()
         self.update_plots()
@@ -461,10 +581,10 @@ class OrthoView(QtWidgets.QWidget):
         
     def closeEvent(self, QCloseEvent):
         super().closeEvent(QCloseEvent)
-        self.plotter_ortho_view_yz.Finalize()
-        self.plotter_ortho_view_xz.Finalize()
-        self.plotter_ortho_view_xy.Finalize()
-        self.plotter_ortho_view_r.Finalize()
-        self.plotter_ortho_view_rc.Finalize()
-        self.plotter3D.Finalize() 
+        # self.plotter_ortho_view_yz.Finalize()
+        # self.plotter_ortho_view_xz.Finalize()
+        # self.plotter_ortho_view_xy.Finalize()
+        # self.plotter_ortho_view_r.Finalize()
+        # self.plotter_ortho_view_rc.Finalize()
+        # self.plotter3D.Finalize()  TODO 
 

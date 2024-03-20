@@ -1,6 +1,8 @@
 
 import sys
 
+import pretty_errors
+
 from PyQt5 import QtWidgets
 import pyvista as pv
 from views.main_view import MainView
