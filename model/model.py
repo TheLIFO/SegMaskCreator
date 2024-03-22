@@ -24,11 +24,13 @@ class Model(QObject):
         super().__init__()
         
         self._knotdata = None    
+        
         self.mesh = vtk.vtkNrrdReader()
+        self.mesh.SetFileName("")
+        
         self.mesh_threshed = vtk.vtkImageThreshold()
-        
-        self.reader = vtk.vtkNrrdReader()
-        
+        self.mesh_threshed.SetInputConnection(self.mesh.GetOutputPort()) # Set your input vtkImageData
+       
         self.mesh_scale = None
         self._threshold = 0  
         self._threshold_active = False      
@@ -49,8 +51,10 @@ class Model(QObject):
         
     def on_threshold_changed(self):
         if (self.threshold_active and self.mesh != None):
-            print ("Threshold changed to ", self.threshold, " ...")
-            self.mesh.threshold(self.threshold)
+            print ("Threshold changed to ", self.threshold_val, " ...")
+            self.mesh_threshed.ThresholdByUpper(self.threshold_val)
+            self.mesh_threshed.Update()
+            # TODO emit signal for other views to update            
             print ("Threshold changed...ok")
         
         
@@ -65,24 +69,15 @@ class Model(QObject):
        
         
         # set default values
-        self.mesh_origin = (0, 0, 0)        
+        # self.mesh_origin = (0, 0, 0)        
         self.mesh_scale = (1, 1, 1)
         
-        header = nrrd.read_header(filename)
-        try:
-            spacing_dirs = header["space directions"]
-            self.mesh_scale = (spacing_dirs[0, 0], spacing_dirs[1, 1], spacing_dirs[2, 2])
-            self.mesh_origin = header["space origin"]
-        except:
-            pass
-        
-        # TODO compare to test_gui_and_orig_vtk_w_planewidget.py
-        # spacing, origin from different tags ????
-        # calculation for placing widget wrong ?????
-       
+        (self.xMin, self.xMax, self.yMin, self.yMax, self.zMin, self.zMax) = self.mesh.GetExecutive().GetWholeExtent(self.mesh.GetOutputInformation(0))
+        self.mesh_scale = self.mesh.GetOutput().GetSpacing()
+        (self.x0, self.y0, self.z0) = self.mesh.GetOutput().GetOrigin()
+               
         
         self.threshold_val = 900        
-        self.mesh_threshed.SetInputConnection(self.mesh.GetOutputPort()) # Set your input vtkImageData
         self.mesh_threshed.ThresholdByUpper(self.threshold_val) # Set the threshold value
         self.mesh_threshed.ReplaceInOn() # Set the operation to replace in values
         self.mesh_threshed.SetInValue(1) # Set the value for inside the threshold
@@ -91,13 +86,13 @@ class Model(QObject):
         
         
         # obtain new bounds
-        xmin, xmax, ymin, ymax, zmin, zmax = self.mesh.GetOutput().GetBounds() 
-        xmin = round(xmin * self.mesh_scale[0]) / self.mesh_scale[0]
-        xmax = round(xmax * self.mesh_scale[0]) / self.mesh_scale[0]
-        ymin = round(ymin * self.mesh_scale[1]) / self.mesh_scale[1]
-        ymax = round(ymax * self.mesh_scale[1]) / self.mesh_scale[1]
-        zmin = round(zmin * self.mesh_scale[2]) / self.mesh_scale[2]
-        zmax = round(zmax * self.mesh_scale[2]) / self.mesh_scale[2]
+        # xmin, xmax, ymin, ymax, zmin, zmax = self.mesh.GetOutput().GetBounds() 
+        xmin = round(self.xMin * self.mesh_scale[0]) / self.mesh_scale[0]
+        xmax = round(self.xMax * self.mesh_scale[0]) / self.mesh_scale[0]
+        ymin = round(self.yMin * self.mesh_scale[1]) / self.mesh_scale[1]
+        ymax = round(self.yMax * self.mesh_scale[1]) / self.mesh_scale[1]
+        zmin = round(self.zMin * self.mesh_scale[2]) / self.mesh_scale[2]
+        zmax = round(self.zMax * self.mesh_scale[2]) / self.mesh_scale[2]
         self.slice_bounds = {   "x": {"min": xmin, "max": xmax},
                                 "y": {"min": ymin, "max": ymax},
                                 "z": {"min": zmin, "max": zmax},
@@ -116,8 +111,8 @@ class Model(QObject):
         self.threshold_bounds = { "min": 0, "max": 3000 }
         self.knotdata = KnotData(filename)
         
-        self.mesh = self.reader # set new mesh here to trigger also setting new bounds
         
+        self.mesh_changed.emit()
    
     @property
     def mesh(self):
@@ -125,7 +120,6 @@ class Model(QObject):
     @mesh.setter
     def mesh(self, mesh):
         self._mesh = mesh
-        self.mesh_changed.emit()
     
     @property
     def knotdata(self):
@@ -136,10 +130,10 @@ class Model(QObject):
         self.knotdata_changed.emit(value)       
     
     @property
-    def threshold(self):
+    def threshold_val(self):
         return int(self._threshold)
-    @threshold.setter
-    def threshold(self, threshold):  
+    @threshold_val.setter
+    def threshold_val(self, threshold):  
         self._threshold = int(threshold)
         self.on_threshold_changed()        
         self.threshold_changed.emit(int(threshold))   
@@ -152,7 +146,7 @@ class Model(QObject):
     def threshold_active(self, threshold_active):  
         self._threshold_active = threshold_active
         self.on_threshold_changed()
-        self.threshold_changed.emit(self.threshold)
+        self.threshold_changed.emit(self.threshold_val)
         # do actual thresholding with mesh
         
     @property

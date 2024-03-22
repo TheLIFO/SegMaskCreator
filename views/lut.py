@@ -33,7 +33,7 @@ class Luts:
         
         return lut
     
-    def get_threshed_lut(color = [0,0,0], opacity = .8):
+    def get_threshed_lut(color = [1,0,0], opacity = .8):
         
         # Create a vtkLookupTable from the vtkColorTransferFunction
         lut = vtk.vtkLookupTable()

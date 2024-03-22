@@ -8,6 +8,7 @@ import pyvista as pv
 from views.main_view import MainView
 from controllers.main_controller import MainController
 from model.model import Model
+import settings
 
 title = "Segment Mask Creator v0.0.1"
 pv.global_theme.allow_empty_mesh = True
@@ -18,6 +19,7 @@ class App(QtWidgets.QApplication):
         
         self.applicationName = title
         
+        settings.init() 
         self.model = Model()
         self.main_controller = MainController(self.model)
         self.main_view = MainView(self.model, self.main_controller, title)

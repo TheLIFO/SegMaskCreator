@@ -553,13 +553,10 @@ class MyMainWindow(QtWidgets.QMainWindow):
         
         # todo check if also ok
         self.planeWidget.SetInputConnection(self.reader.GetOutputPort())
-        # self.planeWidget.SetInputData(self.reader.GetOutput())
-        # self.planeWidget.SetPlaneOrientationToZAxes()
+
         self.planeWidget.SetPlaneOrientationToYAxes()
         self.planeWidget.TextureVisibilityOn()
-        # (self.xMin, self.xMax, self.yMin, self.yMax, self.zMin, self.zMax) = self.reader.GetExecutive().GetWholeExtent(self.reader.GetOutputInformation(0))
-        # (self.xSpacing, self.ySpacing, self.zSpacing) = self.reader.GetOutput().GetSpacing()
-        
+          
         self.planeWidget.PlaceWidget(self.xMin*self.xSpacing+self.x0, self.xMax*self.xSpacing+self.x0, self.yMin*self.ySpacing+self.y0, self.yMax*self.ySpacing+self.y0, self.zMin*self.zSpacing+self.z0, self.zMax*self.zSpacing+self.z0)
         
         self.reslicer.Update()
@@ -605,7 +602,7 @@ class MyMainWindow(QtWidgets.QMainWindow):
     def load_data(self):
         # Start by loading some data.
         filename = "data\Drydisk07.6.nrrd"
-        filename = 'J:/Wn/z6_CT/1866_WAI_KnotCT/CTRegistratorData/FVA_Data/Disks/Tree 7697/Prep/Dry/Disk7697.Q24.nrrd'
+        # filename = 'J:/Wn/z6_CT/1866_WAI_KnotCT/CTRegistratorData/FVA_Data/Disks/Tree 7697/Prep/Dry/Disk7697.Q24.nrrd'
         self.reader.SetFileName(filename)
         self.reader.Update()
 
