@@ -4,6 +4,8 @@ from PyQt5.QtCore import pyqtSlot
 
 import vtk
 from vtk.qt.QVTKRenderWindowInteractor import QVTKRenderWindowInteractor
+import numpy as np
+
 
 # from pyvistaqt import QtInteractor
 from model.model import Model
@@ -25,15 +27,15 @@ class OrthoViewSlice():
         self.ren.SetActiveCamera(camera)
         self.vtkWidget = QVTKRenderWindowInteractor(parent)
         self.vtkWidget.GetRenderWindow().AddRenderer(self.ren)
-        self.iren = self.vtkWidget.GetRenderWindow().GetInteractor()    
+        self.iren = self.vtkWidget.GetRenderWindow().GetInteractor()
         
         # Set up the interaction        
-        self.interactorStyle = vtk.vtkInteractorStyleImage()
+        self.interactorStyle = vtk.vtkInteractorStyleImage()        
         self.iren.SetInteractorStyle(self.interactorStyle)  
-        
         # this is a cursor of sort
         self.sphere = vtk.vtkSphereSource()
-        self.sphere.SetRadius(0.5)  
+        
+        self.sphere.SetRadius(1.0)  
         mapper = vtk.vtkPolyDataMapper()
         mapper.SetInputConnection(self.sphere.GetOutputPort())
         sphereactor = vtk.vtkActor()
@@ -43,10 +45,12 @@ class OrthoViewSlice():
         
         # initialize planewidget and connect it to the renderer and interactor from ortho_overview
         self.planeWidget = vtk.vtkImagePlaneWidget()        
-        self.planeWidget.SetResliceInterpolateToCubic()   
+        # self.planeWidget.SetResliceInterpolateToCubic()   
+        self.planeWidget.SetResliceInterpolateToLinear() 
         # setting margin size to 0 in order to disable rotating plane
         self.planeWidget.SetMarginSizeX(0)
         self.planeWidget.SetMarginSizeY(0)
+        self.planeWidget.SetRestrictPlaneToVolume(True)
         
         self.planeWidget.AddObserver('InteractionEvent', self.on_clip_plane_changed)
         self.planeWidget.TextureVisibilityOn()    
@@ -62,6 +66,7 @@ class OrthoViewSlice():
         self.actor = [None] * len(inputs)
         self.planeWidget.On()
         
+        self.actorAssembly = vtk.vtkAssembly()
                 
         for idx in range(len(inputs)):
             if idx == 0:                
@@ -83,8 +88,19 @@ class OrthoViewSlice():
             
             self.actor[idx] = vtk.vtkImageActor()
             self.actor[idx].GetMapper().SetInputConnection(self.mapper[idx].GetOutputPort())
-            self.ren.AddActor(self.actor[idx])
+            self.actorAssembly.AddPart(self.actor[idx])
         
+        self.ren.AddActor(self.actorAssembly)
+        # interactors        
+        self.interactorStyle.AddObserver("MouseMoveEvent", self.mouseMoveCallback)
+        self.interactorStyle.AddObserver("LeftButtonPressEvent", self.buttonCallback)
+        self.interactorStyle.AddObserver("LeftButtonReleaseEvent", self.buttonCallback)
+        self.interactorStyle.AddObserver("RightButtonPressEvent", self.buttonCallback)  
+        self.interactorStyle.AddObserver("RightButtonReleaseEvent", self.buttonCallback)  
+        self.interactorStyle.AddObserver("MiddleButtonPressEvent", self.buttonCallback)  
+        self.interactorStyle.AddObserver("MiddleButtonReleaseEvent", self.buttonCallback)  
+        
+          
     
     def on_clip_plane_changed(self, caller, event):
         
@@ -92,6 +108,8 @@ class OrthoViewSlice():
                         
         
         self._model.slice_pos[self.direction] = position
+        # also emit slice position changed (hard to implement via setter function, therefore it has to be done this way)
+        self._model.slice_pos_changed.emit(self._model.slice_pos)
         caller.GetReslice().Update()
         
         
@@ -107,9 +125,9 @@ class OrthoViewSlice():
         
         self.inputs[0].Update()
         self.planeWidget.SetInputData(self.inputs[0].GetOutput())
-        self.planeWidget.PlaceWidget(self._model.slice_bounds['x']['min'] * self._model.mesh_scale[0], self._model.slice_bounds['x']['max'] * self._model.mesh_scale[0], 
-                                     self._model.slice_bounds['y']['min'] * self._model.mesh_scale[1], self._model.slice_bounds['y']['max'] * self._model.mesh_scale[1],
-                                     self._model.slice_bounds['z']['min'] * self._model.mesh_scale[2], self._model.slice_bounds['z']['max'] * self._model.mesh_scale[2])
+        self.planeWidget.PlaceWidget(self._model.slice_bounds['x']['min'], self._model.slice_bounds['x']['max'] , 
+                                     self._model.slice_bounds['y']['min'], self._model.slice_bounds['y']['max'] ,
+                                     self._model.slice_bounds['z']['min'], self._model.slice_bounds['z']['max'] )
 
         
         if self.normal[0] == 1:
@@ -119,6 +137,7 @@ class OrthoViewSlice():
         if self.normal[2] == 1:
             self.planeWidget.SetPlaneOrientation(2)
 
+        self.sphere.SetRadius(self._model.mesh_scale[0] / 2)  
         self.ren.ResetCamera() 
         
         self.ren.ResetCameraClippingRange()        
@@ -146,46 +165,58 @@ class OrthoViewSlice():
     def set_position(self, position):
         self.planeWidget.SetSlicePosition(position)
         
-    
+    def buttonCallback(self, obj, event):
+        print ("button cb called, event ", event)
+        if event == "MiddleButtonPressEvent":
+            self.interactorStyle.OnMiddleButtonDown()
+        if event == "MiddleButtonReleaseEvent":
+            self.interactorStyle.OnMiddleButtonUp()
+        # if event == "LeftButtonPressEvent":
+        #     self.actions["Slicing"] = 1
+        # else:
+        #     self.actions["Slicing"] = 0
+        
+        
+        
     
     
     def mouseMoveCallback(self, obj, event):
         
         (lastX, lastY) = self.iren.GetLastEventPosition()
-        (mouseX, mouseY) = self.iren.GetEventPosition()        
+        mouse_coord = [None] * 2
+        (mouse_coord[0], mouse_coord[1]) = self.iren.GetEventPosition()        
         
         
         coordinate = vtk.vtkCoordinate()
         coordinate.SetCoordinateSystemToDisplay()
-        coordinate.SetValue(mouseX, mouseY)
-        coord = coordinate.GetComputedWorldValue(self.ren)
-        print("coord:", coord)
+        coordinate.SetValue(mouse_coord[0], mouse_coord[1])
+        world_coord = coordinate.GetComputedWorldValue(self.ren)
+        print("coord:", world_coord)
         
-        self.sphere.SetCenter(coord[0], coord[1], 0)
+        self.sphere.SetCenter(world_coord[0], world_coord[1], 0)
         self.iren.Render()
         #transform coordinates from local orientation to global one according to resliceorientation
-        origin = self.reslicer.GetOutput().GetOrigin()
-        pixel = [coord[0], coord[1]]
-        resliceAxes = self.reslicer.GetResliceAxes()
-        coord = resliceAxes.MultiplyDoublePoint([pixel[0]+origin[0], pixel[1]+origin[1], origin[2], 1])
-        
-        
-        
+        origin = self.reslicer[0].GetOutput().GetOrigin()
+        pixel = [world_coord[0], world_coord[1]]
+        resliceAxes = self.reslicer[0].GetResliceAxes()
+        world_coord = np.array(resliceAxes.MultiplyDoublePoint([pixel[0]+origin[0], pixel[1]+origin[1], origin[2], 1]))[0:3]
+     
         # translate coordinates into array indices
-        x = round(coord[0]/self._model.mesh_scale[0])
-        y = round(coord[1]/self._model.mesh_scale[1])
-        z = round(coord[2]/self._model.mesh_scale[2])
+        mesh_indices = np.ceil(np.divide(world_coord, self._model.mesh_scale)).astype(int) - 1
         
-        if  (x < self._model.slice_bounds['x'].min) or (x > self._model.slice_bounds['x'].max) or \
-            (y < self._model.slice_bounds['y'].min) or (y > self._model.slice_bounds['y'].max) or \
-            (z < self._model.slice_bounds['z'].min) or (z > self._model.slice_bounds['z'].max):            
-            value = 0
-            value_threshed = 0
+        
+        if  (world_coord[0] < self._model.slice_bounds['x']["min"]) or (world_coord[0] > self._model.slice_bounds['x']["max"]) or \
+            (world_coord[1] < self._model.slice_bounds['y']["min"]) or (world_coord[1] > self._model.slice_bounds['y']["max"]) or \
+            (world_coord[2] < self._model.slice_bounds['z']["min"]) or (world_coord[2] > self._model.slice_bounds['z']["max"]):            
+            value = -1
+            value_threshed = -1
         else:
-            value          = self.mesh.GetOutput().GetScalarComponentAsDouble(x, y, z, 0)
-            value_threshed = self.threshed.GetOutput().GetScalarComponentAsDouble(x, y, z, 0)
-                
-        print("x mouse: ", mouseX, " y mouse: ", mouseY, "world-x: ",coord[0], " world-y: ", coord[1],"world-z: ", coord[2],"   Scalar: ", value, "threshed: ", value_threshed)
+            value          = self._model.mesh.GetOutput().GetScalarComponentAsDouble(mesh_indices[0], mesh_indices[1], mesh_indices[2], 0)
+            value_threshed = self._model.mesh_threshed.GetOutput().GetScalarComponentAsDouble(mesh_indices[0], mesh_indices[1], mesh_indices[2], 0)
+        
+        np.set_printoptions(formatter={'float': lambda x: f"{x:2f}"})      
+        
+        print(f'{mouse_coord =} {world_coord =} {mesh_indices =}  {value =} {value_threshed =}')
         
         self.interactorStyle.OnMouseMove()
 
@@ -308,20 +339,7 @@ class OrthoViewOverview():
         self.ren.ResetCamera()  
         self.iren.Start()
             
-    # self.inputs = inputs
-        
-        
-    #     # self.volumeMapper.SetInputConnection(self.inputs[0].GetOutputPort())
-    #     # self.volumeThreshedMapper.SetInputConnection(self.inputs[1].GetOutputPort())
-        
-                
-    #     self.ren.ResetCamera() 
-    #     self._model.mesh_threshed.Update()
-    #     self.
-        
-    #     self.ren.ResetCameraClippingRange()        
-    #     self.iren.Start()
-    #     self.update()
+
         
     def update(self):
         self.iren.Render()
@@ -336,9 +354,9 @@ class OrthoView(QtWidgets.QWidget):
         self.ortho_overview    = OrthoViewOverview(self._model, "OrthoOverview", self)
         
         self.ortho_view_slices = {}
-        self.ortho_view_slices['xy'] = OrthoViewSlice(self._model, 'xy', self, [self._model.mesh, self._model.mesh_threshed], [Luts.get_standard_lut(),Luts.get_threshed_lut()], [0,0,0], [0,0,1], 'z', self.ortho_overview.iren, self.ortho_overview.ren)
-        self.ortho_view_slices['xz'] = OrthoViewSlice(self._model, 'xz', self, [self._model.mesh, self._model.mesh_threshed], [Luts.get_standard_lut(),Luts.get_threshed_lut()], [0,0,0], [0,1,0], 'y', self.ortho_overview.iren, self.ortho_overview.ren)
-        self.ortho_view_slices['yz'] = OrthoViewSlice(self._model, 'yz', self, [self._model.mesh, self._model.mesh_threshed], [Luts.get_standard_lut(),Luts.get_threshed_lut()], [0,0,0], [1,0,0], 'x', self.ortho_overview.iren, self.ortho_overview.ren)
+        self.ortho_view_slices['xy'] = OrthoViewSlice(self._model, 'xy', self, [self._model.mesh, self._model.mesh_threshed], [Luts.get_standard_lut(), Luts.get_threshed_lut([1,0,0], 0.8)], [0,0,0], [0,0,1], 'z', self.ortho_overview.iren, self.ortho_overview.ren)
+        self.ortho_view_slices['xz'] = OrthoViewSlice(self._model, 'xz', self, [self._model.mesh, self._model.mesh_threshed], [Luts.get_standard_lut(), Luts.get_threshed_lut([1,0,0], 0.8)], [0,0,0], [0,1,0], 'y', self.ortho_overview.iren, self.ortho_overview.ren)
+        self.ortho_view_slices['yz'] = OrthoViewSlice(self._model, 'yz', self, [self._model.mesh, self._model.mesh_threshed], [Luts.get_standard_lut(), Luts.get_threshed_lut([1,0,0], 0.8)], [0,0,0], [1,0,0], 'x', self.ortho_overview.iren, self.ortho_overview.ren)
         
         layout = QtWidgets.QGridLayout()        
         self.setLayout(layout)           
@@ -368,60 +386,6 @@ class OrthoView(QtWidgets.QWidget):
         #update visibility of widgets
         self.on_show_cut_views_changed(self._model.show_cut_views)
         
-    def on_clip_plane_X_changed(self, normal, origin):
-        new_origin = [round(a*2)/2 for a in list(origin)]                
-        self._model.slice_pos =  {  "x": new_origin[0],
-                                    "y": self._model.slice_pos["y"],
-                                    "z": self._model.slice_pos["z"],
-                                    "r": self._model.slice_pos["r"],
-                                    "r_a": self._model.slice_pos["r_a"],
-                                    "r_x": self._model.slice_pos["r_x"],
-                                    "r_y": self._model.slice_pos["r_y"]}
-        
-    def on_clip_plane_Y_changed(self, normal, origin):
-        new_origin = [round(a*2)/2 for a in list(origin)]                
-        self._model.slice_pos =  {  "x": self._model.slice_pos["x"],
-                                    "y": new_origin[1],
-                                    "z": self._model.slice_pos["z"],
-                                    "r": self._model.slice_pos["r"],
-                                    "r_a": self._model.slice_pos["r_a"],
-                                    "r_x": self._model.slice_pos["r_x"],
-                                    "r_y": self._model.slice_pos["r_y"] }          
-
-    def on_clip_plane_Z_changed(self, normal, origin):
-        new_origin = [round(a*2)/2 for a in list(origin)]        
-        self._model.slice_pos = {   "x": self._model.slice_pos["x"],
-                                    "y": self._model.slice_pos["y"],
-                                    "z": new_origin[2],
-                                    "r": self._model.slice_pos["r"],
-                                    "r_a": self._model.slice_pos["r_a"],
-                                    "r_x": self._model.slice_pos["r_x"],
-                                    "r_y": self._model.slice_pos["r_y"] }
-
-    def on_clip_plane_R_changed(self, normal, origin):
-        print ("TODO")
-        return
-        new_origin = [round(a*10)/10 for a in list(origin)]        
-        self._model.slice_pos = {   "x": self._model.slice_pos["x"],
-                                    "y": self._model.slice_pos["y"],
-                                    "z": self._model.slice_pos["z"],
-                                    "r": self._model.slice_pos["r"],
-                                    "r_a": self._model.slice_pos["r_a"],
-                                    "r_x": self._model.slice_pos["r_x"],
-                                    "r_y": self._model.slice_pos["r_y"] }
-        
-    def on_clip_plane_RC_changed(self, normal, origin):
-        print ("TODO")
-        return
-        new_origin = [round(a*10)/10 for a in list(origin)]        
-        self._model.slice_pos = {   "x": self._model.slice_pos["x"],
-                                    "y": self._model.slice_pos["y"],
-                                    "z": self._model.slice_pos["z"],
-                                    "r": self._model.slice_pos["r"],
-                                    "r_a": self._model.slice_pos["r_a"],
-                                    "r_x": self._model.slice_pos["r_x"],
-                                    "r_y": self._model.slice_pos["r_y"] }
-        
                  
     @pyqtSlot()
     def on_mesh_changed(self):
@@ -440,20 +404,18 @@ class OrthoView(QtWidgets.QWidget):
     
     
     def on_slice_bounds_changed(self, slice_bounds):
-        pass
-        """
-        # TODO !!!!
-        self.clip_plane_widget_X.PlaceWidget(slice_bounds["x"]["min"], slice_bounds["x"]["max"], slice_bounds["y"]["min"], slice_bounds["y"]["max"], slice_bounds["z"]["min"], slice_bounds["z"]["max"])
-        self.clip_plane_widget_Y.PlaceWidget(slice_bounds["x"]["min"], slice_bounds["x"]["max"], slice_bounds["y"]["min"], slice_bounds["y"]["max"], slice_bounds["z"]["min"], slice_bounds["z"]["max"])
-        self.clip_plane_widget_Z.PlaceWidget(slice_bounds["x"]["min"], slice_bounds["x"]["max"], slice_bounds["y"]["min"], slice_bounds["y"]["max"], slice_bounds["z"]["min"], slice_bounds["z"]["max"])
-    
-        # TODO
-        self.clip_plane_widget_R.PlaceWidget(slice_bounds["x"]["min"], slice_bounds["x"]["max"], slice_bounds["y"]["min"], slice_bounds["y"]["max"], slice_bounds["z"]["min"], slice_bounds["z"]["max"])
-        """
+        
+        
+        self.ortho_overview.update_mesh()
+        
+        self.ortho_view_slices['xy'].update_mesh()
+        self.ortho_view_slices['xz'].update_mesh()
+        self.ortho_view_slices['yz'].update_mesh()
     
     def on_show_cut_views_changed(self, show_cut_views):
-        # for show_cut_view in show_cut_views:
-            # self.ortho_views[show_cut_view].get_widget().setVisible(show_cut_views[show_cut_view])
+        for ortho_view_slice in self.ortho_view_slices.values():
+            ortho_view_slice.get_widget().setVisible(show_cut_views[ortho_view_slice.name])
+        
         # if there is a mesh, update all plot windowss
         if not self._model.mesh == None:
             self.update_plots()

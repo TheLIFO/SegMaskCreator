@@ -496,7 +496,7 @@ class MyMainWindow(QtWidgets.QMainWindow):
         # print("orientation:", resliceaxes)
         # coord = (coord[0], coord[1], resliceaxes.GetElement(2,3))
         
-        # now the same thinf with proper matrix transformation
+        # now the same thing with proper matrix transformation
         origin = self.reslicer.GetOutput().GetOrigin()
         pixel = [coord[0], coord[1]]
         resliceAxes = self.reslicer.GetResliceAxes()

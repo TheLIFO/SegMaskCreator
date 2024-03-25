@@ -7,6 +7,9 @@ import nrrd
 import copy
 import vtk
     
+from vtk.util import numpy_support
+import numpy as np
+
 class Model(QObject):
     # signals when model changes
     knotdata_changed = pyqtSignal(KnotData)
@@ -57,7 +60,8 @@ class Model(QObject):
             # TODO emit signal for other views to update            
             print ("Threshold changed...ok")
         
-        
+
+    
     def load_imagedata(self, filename):
         print ("loading file:", filename)
                       
@@ -66,16 +70,17 @@ class Model(QObject):
         
         self.mesh.Update()
         
-       
         
-        # set default values
-        # self.mesh_origin = (0, 0, 0)        
-        self.mesh_scale = (1, 1, 1)
+
         
         (self.xMin, self.xMax, self.yMin, self.yMax, self.zMin, self.zMax) = self.mesh.GetExecutive().GetWholeExtent(self.mesh.GetOutputInformation(0))
         self.mesh_scale = self.mesh.GetOutput().GetSpacing()
         (self.x0, self.y0, self.z0) = self.mesh.GetOutput().GetOrigin()
-               
+        
+        
+
+        
+        
         
         self.threshold_val = 900        
         self.mesh_threshed.ThresholdByUpper(self.threshold_val) # Set the threshold value
@@ -86,33 +91,34 @@ class Model(QObject):
         
         
         # obtain new bounds
-        # xmin, xmax, ymin, ymax, zmin, zmax = self.mesh.GetOutput().GetBounds() 
-        xmin = round(self.xMin * self.mesh_scale[0]) / self.mesh_scale[0]
-        xmax = round(self.xMax * self.mesh_scale[0]) / self.mesh_scale[0]
-        ymin = round(self.yMin * self.mesh_scale[1]) / self.mesh_scale[1]
-        ymax = round(self.yMax * self.mesh_scale[1]) / self.mesh_scale[1]
-        zmin = round(self.zMin * self.mesh_scale[2]) / self.mesh_scale[2]
-        zmax = round(self.zMax * self.mesh_scale[2]) / self.mesh_scale[2]
+
+        xmin = self.xMin * self.mesh_scale[0]
+        xmax = self.xMax * self.mesh_scale[0]
+        ymin = self.yMin * self.mesh_scale[1]
+        ymax = self.yMax * self.mesh_scale[1]
+        zmin = self.zMin * self.mesh_scale[2]
+        zmax = self.zMax * self.mesh_scale[2]
         self.slice_bounds = {   "x": {"min": xmin, "max": xmax},
                                 "y": {"min": ymin, "max": ymax},
                                 "z": {"min": zmin, "max": zmax},
-                                "r": {"min": 0, "max": max(round((xmax-xmin)/self.mesh_scale[0]), round((ymax-ymin)/self.mesh_scale[1]))},
+                                "r": {"min": 0, "max": max([round((xmax-xmin), round((ymax-ymin)))])},
                                 "r_a": {"min": 0, "max": 360},
                                 "r_x": {"min": xmin, "max": xmax},
                                 "r_y": {"min": ymin, "max": ymax} }
-        self.slice_pos = {  "x": round(self.mesh.GetOutput().GetCenter()[0] * self.mesh_scale[0]) / self.mesh_scale[0],
-                            "y": round(self.mesh.GetOutput().GetCenter()[1] * self.mesh_scale[1]) / self.mesh_scale[1],
-                            "z": round(self.mesh.GetOutput().GetCenter()[2] * self.mesh_scale[2]) / self.mesh_scale[2], 
-                            "r": max(round((xmax-xmin)/2), round((ymax-ymin) / self.mesh_scale[0])) / self.mesh_scale[0],
-                            "r_x": round(self.mesh.GetOutput().GetCenter()[0] * self.mesh_scale[0]) / self.mesh_scale[0],
-                            "r_y": round(self.mesh.GetOutput().GetCenter()[1] * self.mesh_scale[1]) / self.mesh_scale[1],
+        self.slice_pos = {  "x": round(self.mesh.GetOutput().GetCenter()[0] * self.mesh_scale[0]) ,
+                            "y": round(self.mesh.GetOutput().GetCenter()[1] * self.mesh_scale[1]) ,
+                            "z": round(self.mesh.GetOutput().GetCenter()[2] * self.mesh_scale[2]) , 
+                            "r": max([round((xmax-xmin)/2), round((ymax-ymin) / 2)]) ,
+                            "r_x": round(self.mesh.GetOutput().GetCenter()[0] * self.mesh_scale[0]) ,
+                            "r_y": round(self.mesh.GetOutput().GetCenter()[1] * self.mesh_scale[1]) ,
                             "r_a": 0.0 }
         
         self.threshold_bounds = { "min": 0, "max": 3000 }
         self.knotdata = KnotData(filename)
         
-        
+        # signal emiting does not work via setter function therefore done this way
         self.mesh_changed.emit()
+        self.slice_pos_changed.emit(self.slice_pos)
    
     @property
     def mesh(self):
