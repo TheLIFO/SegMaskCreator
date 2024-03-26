@@ -18,6 +18,13 @@ class OrthoViewSlice():
                     
         self.name = name
         self.direction = direction
+        if  self.direction == 'x':
+            self.axis = 0
+        elif self.direction == 'y':
+            self.axis = 1
+        elif self.direction == 'z': 
+            self.axis = 2
+            
         self.normal = normal
         self._model = model        
                 
@@ -46,7 +53,8 @@ class OrthoViewSlice():
         # initialize planewidget and connect it to the renderer and interactor from ortho_overview
         self.planeWidget = vtk.vtkImagePlaneWidget()        
         # self.planeWidget.SetResliceInterpolateToCubic()   
-        self.planeWidget.SetResliceInterpolateToLinear() 
+        # self.planeWidget.SetResliceInterpolateToLinear() 
+        self.planeWidget.SetResliceInterpolateToNearestNeighbour() 
         # setting margin size to 0 in order to disable rotating plane
         self.planeWidget.SetMarginSizeX(0)
         self.planeWidget.SetMarginSizeY(0)
@@ -163,7 +171,10 @@ class OrthoViewSlice():
         self.iren.Render()                
         
     def set_position(self, position):
-        self.planeWidget.SetSlicePosition(position)
+        # VTK issue:
+        # position "formaly" refers to the position of the plane near the beginning of the grid !!!
+        # therefore adding one half of a cell and subtracting a small number will result in actually slicing through the middle of the cell
+        self.planeWidget.SetSlicePosition(position+self._model.mesh_scale[self.axis]/2-0.01)
         
     def buttonCallback(self, obj, event):
         print ("button cb called, event ", event)
@@ -177,9 +188,6 @@ class OrthoViewSlice():
         #     self.actions["Slicing"] = 0
         
         
-        
-    
-    
     def mouseMoveCallback(self, obj, event):
         
         (lastX, lastY) = self.iren.GetLastEventPosition()
@@ -202,7 +210,7 @@ class OrthoViewSlice():
         world_coord = np.array(resliceAxes.MultiplyDoublePoint([pixel[0]+origin[0], pixel[1]+origin[1], origin[2], 1]))[0:3]
      
         # translate coordinates into array indices
-        mesh_indices = np.ceil(np.divide(world_coord, self._model.mesh_scale)).astype(int) - 1
+        mesh_indices = np.floor(np.divide(world_coord, self._model.mesh_scale)).astype(int)
         
         
         if  (world_coord[0] < self._model.slice_bounds['x']["min"]) or (world_coord[0] > self._model.slice_bounds['x']["max"]) or \
@@ -278,14 +286,14 @@ class OrthoViewOverview():
         volumeProperty.SetColor(colorTransferFunction)
         volumeProperty.SetScalarOpacity(opacityTransferFunction)
         volumeProperty.ShadeOn()
-        volumeProperty.SetInterpolationTypeToLinear()
+        volumeProperty.SetInterpolationTypeToNearest()
 
         # The property describes how the data will look.
         volumeThreshedProperty = vtk.vtkVolumeProperty()
         volumeThreshedProperty.SetColor(colorThreshedTransferFunction)
         volumeThreshedProperty.SetScalarOpacity(opacityThreshedTransferFunction)
         volumeThreshedProperty.ShadeOn()
-        volumeThreshedProperty.SetInterpolationTypeToLinear()
+        volumeThreshedProperty.SetInterpolationTypeToNearest()
 
 
         # The mapper / ray cast function know how to render the data.

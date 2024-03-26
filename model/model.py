@@ -71,14 +71,9 @@ class Model(QObject):
         self.mesh.Update()
         
         
-
-        
         (self.xMin, self.xMax, self.yMin, self.yMax, self.zMin, self.zMax) = self.mesh.GetExecutive().GetWholeExtent(self.mesh.GetOutputInformation(0))
         self.mesh_scale = self.mesh.GetOutput().GetSpacing()
         (self.x0, self.y0, self.z0) = self.mesh.GetOutput().GetOrigin()
-        
-        
-
         
         
         
