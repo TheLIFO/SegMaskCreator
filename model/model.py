@@ -14,8 +14,13 @@ class Model(QObject):
     # signals when model changes
     knotdata_changed = pyqtSignal(KnotData)
     mesh_changed = pyqtSignal()
+    
     slice_bounds_changed = pyqtSignal(object)
     slice_pos_changed = pyqtSignal(object)
+    
+    slice_polar_bounds_changed = pyqtSignal(object)
+    slice_polar_pos_changed = pyqtSignal(object)
+    
     show_cut_views_changed = pyqtSignal(object)
     threshold_changed = pyqtSignal(object)
     threshold_bounds_changed = pyqtSignal(object)
@@ -37,18 +42,21 @@ class Model(QObject):
         self.mesh_scale = None
         self._threshold = 0  
         self._threshold_active = False      
-        self._slice_bounds = { "x": {"min": 0, "max": 0},
-                               "y": {"min": 0, "max": 0},
-                               "z": {"min": 0, "max": 0},
-                               "r": {"min": 0, "max": 0},
-                               "r_x": {"min": 0, "max": 0},
-                               "r_z": {"min": 0, "max": 0},
+        self._slice_bounds = { "r": {"min": 0, "max": 0},                               
+                               "t": {"min": 0, "max": 0},                               
+                               "c": {"min": 0, "max": 0}}
+        
+        self._slice_polar_bounds = {"r_x": {"min": 0, "max": 0},
+                               "r_y": {"min": 0, "max": 0},
                                "r_a": {"min": 0.0, "max": 360.0}}
-        self._slice_pos =    { "x": 0, "y": 0, "z": 0, "r": 0, "r_x": 0, "r_y": 0, "r_a": 0  }
+        
+        self._slice_pos =    { "r": 0, "t": 0, "c": 0}
+        self._slice_polar_pos = { "r_x": 0, "r_y": 0, "r_a": 0  }
+        
 
-        self.show_cut_views = {"yz": False,
-                               "xz": False,
-                               "xy": False }
+        self.show_cut_views = {"r": False,
+                               "t": False,
+                               "c": False }
         
         # self.threshold_changed.connect(self.on_threshold_changed)
         
@@ -85,25 +93,30 @@ class Model(QObject):
         self.mesh_threshed.SetOutValue(0) # Set the value for outside the threshold
         
         
-        # obtain new bounds
-
+        # obtain new bounds (world coordinates)
         xmin = self.xMin * self.mesh_scale[0]
         xmax = self.xMax * self.mesh_scale[0]
         ymin = self.yMin * self.mesh_scale[1]
         ymax = self.yMax * self.mesh_scale[1]
         zmin = self.zMin * self.mesh_scale[2]
         zmax = self.zMax * self.mesh_scale[2]
-        self.slice_bounds = {   "x": {"min": xmin, "max": xmax},
-                                "y": {"min": ymin, "max": ymax},
-                                "z": {"min": zmin, "max": zmax},
-                                "r": {"min": 0, "max": max([round((xmax-xmin), round((ymax-ymin)))])},
-                                "r_a": {"min": 0, "max": 360},
+        
+        
+        self.slice_bounds = {   "r": {"min": -50, "max": 50},                                
+                                "t": {"min": -50, "max": 50},
+                                "c": {"min": -50, "max": 50}}
+                                
+        self.slice_pos = {  "r": round(self.mesh.GetOutput().GetCenter()[0] * self.mesh_scale[0]),                           
+                            "t": round(self.mesh.GetOutput().GetCenter()[1] * self.mesh_scale[1]),
+                            "c": round(self.mesh.GetOutput().GetCenter()[2] * self.mesh_scale[2])}
+        
+        
+        self.slice_polar_bounds = {                                
                                 "r_x": {"min": xmin, "max": xmax},
-                                "r_y": {"min": ymin, "max": ymax} }
-        self.slice_pos = {  "x": round(self.mesh.GetOutput().GetCenter()[0] * self.mesh_scale[0]) ,
-                            "y": round(self.mesh.GetOutput().GetCenter()[1] * self.mesh_scale[1]) ,
-                            "z": round(self.mesh.GetOutput().GetCenter()[2] * self.mesh_scale[2]) , 
-                            "r": max([round((xmax-xmin)/2), round((ymax-ymin) / 2)]) ,
+                                "r_y": {"min": ymin, "max": ymax}, 
+                                "r_a": {"min": 0, "max": 360} }
+        
+        self.slice_polar_pos = {                            
                             "r_x": round(self.mesh.GetOutput().GetCenter()[0] * self.mesh_scale[0]) ,
                             "r_y": round(self.mesh.GetOutput().GetCenter()[1] * self.mesh_scale[1]) ,
                             "r_a": 0.0 }
@@ -167,10 +180,8 @@ class Model(QObject):
     def slice_pos(self, pos):
         # only change and emit signal if values have really changed
         if not (self._slice_pos == pos):
-            self._slice_pos = pos    
-            if self._slice_pos["r_a"] == 360:
-                self._slice_pos["r_a"] = 0        
-            self.slice_pos_changed.emit(self._slice_pos)
+            self._slice_pos = pos  
+            # self.slice_pos_changed.emit(self._slice_pos)
     
     @property 
     def slice_bounds(self):
@@ -180,7 +191,30 @@ class Model(QObject):
         # only change and emit signal if values have really changed
         if not (self._slice_bounds == bounds):
             self._slice_bounds = bounds
-            self.slice_bounds_changed.emit(self._slice_bounds)
+            # self.slice_bounds_changed.emit(self._slice_bounds)
+    
+    
+    @property 
+    def slice_polar_pos(self):
+        return self._slice_polar_pos
+    @slice_polar_pos.setter
+    def slice_polar_pos(self, pos):
+        # only change and emit signal if values have really changed
+        if not (self._slice_polar_pos == pos):
+            self._slice_polar_pos = pos    
+            if self._slice_polar_pos["r_a"] == 360:
+                self._slice_polar_pos["r_a"] = 0        
+            # self.slice_polar_pos_changed.emit(self._slice_polar_pos)
+    
+    @property 
+    def slice_polar_bounds(self):
+        return self._slice_polar_bounds
+    @slice_polar_bounds.setter
+    def slice_polar_bounds(self, bounds):
+        # only change and emit signal if values have really changed
+        if not (self._slice_polar_bounds == bounds):
+            self._slice_polar_bounds = bounds
+            # self.slice_polar_bounds_changed.emit(self._slice_polar_bounds)
     
     @property
     def show_cut_views(self):

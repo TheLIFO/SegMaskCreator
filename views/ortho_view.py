@@ -18,11 +18,11 @@ class OrthoViewSlice():
                     
         self.name = name
         self.direction = direction
-        if  self.direction == 'x':
+        if  self.direction == 'r':
             self.axis = 0
-        elif self.direction == 'y':
+        elif self.direction == 't':
             self.axis = 1
-        elif self.direction == 'z': 
+        elif self.direction == 'c': 
             self.axis = 2
             
         self.normal = normal
@@ -53,12 +53,13 @@ class OrthoViewSlice():
         # initialize planewidget and connect it to the renderer and interactor from ortho_overview
         self.planeWidget = vtk.vtkImagePlaneWidget()        
         # self.planeWidget.SetResliceInterpolateToCubic()   
-        # self.planeWidget.SetResliceInterpolateToLinear() 
-        self.planeWidget.SetResliceInterpolateToNearestNeighbour() 
+        self.planeWidget.SetResliceInterpolateToLinear() 
+        # self.planeWidget.SetResliceInterpolateToNearestNeighbour() 
         # setting margin size to 0 in order to disable rotating plane
         self.planeWidget.SetMarginSizeX(0)
         self.planeWidget.SetMarginSizeY(0)
         self.planeWidget.SetRestrictPlaneToVolume(True)
+        # self.planeWidget.Set
         
         self.planeWidget.AddObserver('InteractionEvent', self.on_clip_plane_changed)
         self.planeWidget.TextureVisibilityOn()    
@@ -78,14 +79,14 @@ class OrthoViewSlice():
                 
         for idx in range(len(inputs)):
             if idx == 0:                
-                self.reslicer[idx] = self.planeWidget.GetReslice()        
+                self.reslicer[idx] = self.planeWidget.GetReslice()                        
                 
             else:
                 # several additional reslicers (starting with e.g. threshed image)
                 self.reslicer[idx] = vtk.vtkImageReslice()            
                 self.reslicer[idx].SetOutputSpacing  (self.reslicer[0].GetOutputSpacing()) # setting the same reslicer properties as the first on
                 self.reslicer[idx].SetOutputOrigin   (self.reslicer[0].GetOutputOrigin())
-                self.reslicer[idx].SetResliceAxes    (self.reslicer[0].GetResliceAxes())
+                self.reslicer[idx].SetResliceAxes    (self.reslicer[0].GetResliceAxes())                
                 self.reslicer[idx].SetInputConnection(inputs[idx].GetOutputPort())
                 
             
@@ -133,9 +134,9 @@ class OrthoViewSlice():
         
         self.inputs[0].Update()
         self.planeWidget.SetInputData(self.inputs[0].GetOutput())
-        self.planeWidget.PlaceWidget(self._model.slice_bounds['x']['min'], self._model.slice_bounds['x']['max'] , 
-                                     self._model.slice_bounds['y']['min'], self._model.slice_bounds['y']['max'] ,
-                                     self._model.slice_bounds['z']['min'], self._model.slice_bounds['z']['max'] )
+        self.planeWidget.PlaceWidget(self._model.slice_bounds['r']['min'], self._model.slice_bounds['r']['max'] , 
+                                     self._model.slice_bounds['t']['min'], self._model.slice_bounds['t']['max'] ,
+                                     self._model.slice_bounds['c']['min'], self._model.slice_bounds['c']['max'] )
 
         
         if self.normal[0] == 1:
@@ -160,6 +161,8 @@ class OrthoViewSlice():
         # in case update is called without having the mesh updated return
         if self._model.mesh_scale == None:
             return
+        
+        
         # before new rendering update make sure the two or more reslicers have the same orientation and position
         for idx in range(len(self.reslicer)):
             if idx == 0:
@@ -175,6 +178,12 @@ class OrthoViewSlice():
         # position "formaly" refers to the position of the plane near the beginning of the grid !!!
         # therefore adding one half of a cell and subtracting a small number will result in actually slicing through the middle of the cell
         self.planeWidget.SetSlicePosition(position+self._model.mesh_scale[self.axis]/2-0.01)
+        
+    def set_polar_position(self, position): 
+        
+        # position[""]
+        
+        pass
         
     def buttonCallback(self, obj, event):
         print ("button cb called, event ", event)
@@ -199,12 +208,13 @@ class OrthoViewSlice():
         coordinate.SetCoordinateSystemToDisplay()
         coordinate.SetValue(mouse_coord[0], mouse_coord[1])
         world_coord = coordinate.GetComputedWorldValue(self.ren)
-        print("coord:", world_coord)
+        print("2D world-coord:", world_coord)
         
         self.sphere.SetCenter(world_coord[0], world_coord[1], 0)
         self.iren.Render()
         #transform coordinates from local orientation to global one according to resliceorientation
         origin = self.reslicer[0].GetOutput().GetOrigin()
+        # origin = [0,0,0]
         pixel = [world_coord[0], world_coord[1]]
         resliceAxes = self.reslicer[0].GetResliceAxes()
         world_coord = np.array(resliceAxes.MultiplyDoublePoint([pixel[0]+origin[0], pixel[1]+origin[1], origin[2], 1]))[0:3]
@@ -212,16 +222,34 @@ class OrthoViewSlice():
         # translate coordinates into array indices
         mesh_indices = np.floor(np.divide(world_coord, self._model.mesh_scale)).astype(int)
         
+        value = -1
+        value_threshed = -1
         
-        if  (world_coord[0] < self._model.slice_bounds['x']["min"]) or (world_coord[0] > self._model.slice_bounds['x']["max"]) or \
-            (world_coord[1] < self._model.slice_bounds['y']["min"]) or (world_coord[1] > self._model.slice_bounds['y']["max"]) or \
-            (world_coord[2] < self._model.slice_bounds['z']["min"]) or (world_coord[2] > self._model.slice_bounds['z']["max"]):            
+        #alternative with probe filter
+        point = vtk.vtkPoints()
+        point.InsertPoint(0, world_coord[0], world_coord[1], world_coord[2]) 
+        pointug = vtk.vtkUnstructuredGrid()
+        pointug.SetPoints(point)
+        probe = vtk.vtkProbeFilter()
+        probe.SetInputData(pointug)
+        probe.SetSourceConnection(self._model.mesh.GetOutputPort())
+        probe.Update()        
+        value = probe.GetOutput().GetPointData().GetScalars().GetValue(0)
+        # and now for threshed values
+        probe.SetSourceConnection(self._model.mesh_threshed.GetOutputPort())
+        probe.Update()
+        value_threshed = probe.GetOutput().GetPointData().GetScalars().GetValue(0) # print the scalars value
+        
+        """
+        if  (world_coord[0] < self._model.slice_bounds['r']["min"]) or (world_coord[0] > self._model.slice_bounds['r']["max"]) or \
+            (world_coord[1] < self._model.slice_bounds['t']["min"]) or (world_coord[1] > self._model.slice_bounds['t']["max"]) or \
+            (world_coord[2] < self._model.slice_bounds['c']["min"]) or (world_coord[2] > self._model.slice_bounds['c']["max"]):            
             value = -1
-            value_threshed = -1
+            value_threshed = -1  
         else:
             value          = self._model.mesh.GetOutput().GetScalarComponentAsDouble(mesh_indices[0], mesh_indices[1], mesh_indices[2], 0)
             value_threshed = self._model.mesh_threshed.GetOutput().GetScalarComponentAsDouble(mesh_indices[0], mesh_indices[1], mesh_indices[2], 0)
-        
+        """
         np.set_printoptions(formatter={'float': lambda x: f"{x:2f}"})      
         
         print(f'{mouse_coord =} {world_coord =} {mesh_indices =}  {value =} {value_threshed =}')
@@ -362,9 +390,9 @@ class OrthoView(QtWidgets.QWidget):
         self.ortho_overview    = OrthoViewOverview(self._model, "OrthoOverview", self)
         
         self.ortho_view_slices = {}
-        self.ortho_view_slices['xy'] = OrthoViewSlice(self._model, 'xy', self, [self._model.mesh, self._model.mesh_threshed], [Luts.get_standard_lut(), Luts.get_threshed_lut([1,0,0], 0.8)], [0,0,0], [0,0,1], 'z', self.ortho_overview.iren, self.ortho_overview.ren)
-        self.ortho_view_slices['xz'] = OrthoViewSlice(self._model, 'xz', self, [self._model.mesh, self._model.mesh_threshed], [Luts.get_standard_lut(), Luts.get_threshed_lut([1,0,0], 0.8)], [0,0,0], [0,1,0], 'y', self.ortho_overview.iren, self.ortho_overview.ren)
-        self.ortho_view_slices['yz'] = OrthoViewSlice(self._model, 'yz', self, [self._model.mesh, self._model.mesh_threshed], [Luts.get_standard_lut(), Luts.get_threshed_lut([1,0,0], 0.8)], [0,0,0], [1,0,0], 'x', self.ortho_overview.iren, self.ortho_overview.ren)
+        self.ortho_view_slices['r'] = OrthoViewSlice(self._model, 'radial section', self, [self._model.mesh, self._model.mesh_threshed], [Luts.get_standard_lut(), Luts.get_threshed_lut([1,0,0], 0.8)], [0,0,0], [1,0,0], 'r', self.ortho_overview.iren, self.ortho_overview.ren)
+        self.ortho_view_slices['t'] = OrthoViewSlice(self._model, 'transverse section', self, [self._model.mesh, self._model.mesh_threshed], [Luts.get_standard_lut(), Luts.get_threshed_lut([1,0,0], 0.8)], [0,0,0], [0,1,0], 't', self.ortho_overview.iren, self.ortho_overview.ren)
+        self.ortho_view_slices['c'] = OrthoViewSlice(self._model, 'cross section', self, [self._model.mesh, self._model.mesh_threshed], [Luts.get_standard_lut(), Luts.get_threshed_lut([1,0,0], 0.8)], [0,0,0], [0,0,1], 'c', self.ortho_overview.iren, self.ortho_overview.ren)
         
         layout = QtWidgets.QGridLayout()        
         self.setLayout(layout)           
@@ -372,22 +400,24 @@ class OrthoView(QtWidgets.QWidget):
         
         # make sure widgets do not move when they  setVisible(False) 
         self.ortho_overview.get_widget().sizePolicy().setRetainSizeWhenHidden(True)
-        self.ortho_view_slices['yz'].get_widget().sizePolicy().setRetainSizeWhenHidden(True)
-        self.ortho_view_slices['xz'].get_widget().sizePolicy().setRetainSizeWhenHidden(True)
-        self.ortho_view_slices['xy'].get_widget().sizePolicy().setRetainSizeWhenHidden(True)
+        self.ortho_view_slices['r'].get_widget().sizePolicy().setRetainSizeWhenHidden(True)
+        self.ortho_view_slices['t'].get_widget().sizePolicy().setRetainSizeWhenHidden(True)
+        self.ortho_view_slices['c'].get_widget().sizePolicy().setRetainSizeWhenHidden(True)
         
         # plotter for overview        
         layout.addWidget(self.ortho_overview.get_widget(), 0, 0)
                 
         # plotter for several cut 2D views
-        layout.addWidget(self.ortho_view_slices['yz'].get_widget(), 0, 1)
-        layout.addWidget(self.ortho_view_slices['xz'].get_widget(), 1, 0)
-        layout.addWidget(self.ortho_view_slices['xy'].get_widget(), 1, 1)
+        layout.addWidget(self.ortho_view_slices['r'].get_widget(), 0, 1)
+        layout.addWidget(self.ortho_view_slices['t'].get_widget(), 1, 0)
+        layout.addWidget(self.ortho_view_slices['c'].get_widget(), 1, 1)
         
         # listen to model event signals     
         self._model.mesh_changed.connect(self.on_mesh_changed)
         self._model.slice_pos_changed.connect(self.on_slice_pos_changed)
         self._model.slice_bounds_changed.connect(self.on_slice_bounds_changed)
+        self._model.slice_polar_pos_changed.connect(self.on_slice_polar_pos_changed)
+        self._model.slice_polar_bounds_changed.connect(self.on_slice_polar_bounds_changed)
         self._model.show_cut_views_changed.connect(self.on_show_cut_views_changed)
 
         
@@ -410,19 +440,28 @@ class OrthoView(QtWidgets.QWidget):
             ortho_view_slice.set_position(self._model.slice_pos[ortho_view_slice.direction])
         self.update_plots()
     
-    
     def on_slice_bounds_changed(self, slice_bounds):
-        
-        
         self.ortho_overview.update_mesh()
         
-        self.ortho_view_slices['xy'].update_mesh()
-        self.ortho_view_slices['xz'].update_mesh()
-        self.ortho_view_slices['yz'].update_mesh()
+        self.ortho_view_slices['r'].update_mesh()
+        self.ortho_view_slices['t'].update_mesh()
+        self.ortho_view_slices['c'].update_mesh()
+    
+    def on_slice_polar_pos_changed(self):
+        if self._model.mesh is None:
+            return
+        print ('on polar slice pos changed (ortho view)')
+        for ortho_view_slice in self.ortho_view_slices.values():
+            ortho_view_slice.set_polar_position(self._model.slice_polar_pos)
+        self.update_plots()
+    
+    def on_slice_polar_bounds_changed(self, slice_bounds):
+        pass
+        #  update_mesh really necessary?
     
     def on_show_cut_views_changed(self, show_cut_views):
         for ortho_view_slice in self.ortho_view_slices.values():
-            ortho_view_slice.get_widget().setVisible(show_cut_views[ortho_view_slice.name])
+            ortho_view_slice.get_widget().setVisible(show_cut_views[ortho_view_slice.direction])
         
         # if there is a mesh, update all plot windowss
         if not self._model.mesh == None:
@@ -434,9 +473,9 @@ class OrthoView(QtWidgets.QWidget):
         print("update views...")
         self.ortho_overview.update()
 
-        self.ortho_view_slices['xy'].update()
-        self.ortho_view_slices['xz'].update()
-        self.ortho_view_slices['yz'].update()
+        self.ortho_view_slices['r'].update()
+        self.ortho_view_slices['t'].update()
+        self.ortho_view_slices['c'].update()
         
         print("update views...ok")        
         
@@ -449,9 +488,9 @@ class OrthoView(QtWidgets.QWidget):
         
         self.ortho_overview.update_mesh()
         
-        self.ortho_view_slices['xy'].update_mesh()
-        self.ortho_view_slices['xz'].update_mesh()
-        self.ortho_view_slices['yz'].update_mesh()
+        self.ortho_view_slices['r'].update_mesh()
+        self.ortho_view_slices['t'].update_mesh()
+        self.ortho_view_slices['c'].update_mesh()
         
         print("update mesh...ok")
 
@@ -462,9 +501,9 @@ class OrthoView(QtWidgets.QWidget):
         
     def closeEvent(self, QCloseEvent):
         super().closeEvent(QCloseEvent)
-        self.ortho_view_slices['xy'].get_widget().Finalize()
-        self.ortho_view_slices['xz'].get_widget().Finalize()
-        self.ortho_view_slices['yz'].get_widget().Finalize()
+        self.ortho_view_slices['r'].get_widget().Finalize()
+        self.ortho_view_slices['t'].get_widget().Finalize()
+        self.ortho_view_slices['c'].get_widget().Finalize()
         self.ortho_overview.get_widget().Finalize()
 
 
